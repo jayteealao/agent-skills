@@ -647,6 +647,9 @@
         "drop-reason": { "type": "string", "description": "Why the slice left the roster: slice drop or slice move." },
         "moved-to": { "type": "string", "description": "The workflow that took the slice: slice move." },
         "moved-from": { "type": "string", "description": "The workflow that gave the slice: slice move." },
+        "carried-issues": { "type": "array", "description": "The issues that a run carried into the slice before its implement: slice carry, from issue place (rungs 3 and 4) or a decision of the person.", "items": { "type": "object", "properties": { "issue": { "type": "string" }, "text": { "type": "string" }, "placement": { "type": "string" }, "decision": { "type": "string" }, "at": { "type": "string" } } } },
+        "carried-at": { "type": "string", "description": "When the last issue was carried in. A plan older than this is written again before the implement." },
+        "made-for": { "type": "string", "description": "The key of the issue that slice add made this slice for (rung 5)." },
         "stage-number": { "const": 3 },
         "created-at": { "$ref": "#/$defs/iso8601" },
         "updated-at": { "$ref": "#/$defs/iso8601" },
@@ -2528,6 +2531,28 @@
         "basis": { "type": "string", "description": "How an estimated value was estimated." }
       }
     },
+    "issueInvestigationFrontmatter": {
+      "type": "object",
+      "description": "05i-issue-<key>.md — the investigation of one issue that a run found (talk post --issue), written by the investigate agent of the driver (_issue-investigate.md). wf.mjs issue place reads it, writes `placement`, and applies the rung (lib/issue-place.mjs).",
+      "required": ["schema", "type", "slug", "issue", "cause", "scope", "coverage"],
+      "properties": {
+        "type": { "const": "issue-investigation" },
+        "issue": { "type": "string", "description": "The talk id of the issue (T-12)." },
+        "key": { "type": "string" },
+        "from": { "type": "string", "description": "The actor that posted the issue." },
+        "observation": { "type": "string" },
+        "cause": { "type": "object", "properties": { "file": { "type": ["string", "null"] }, "line": { "type": ["integer", "null"] }, "commit": { "type": ["string", "null"] }, "branch": { "type": ["string", "null"] }, "summary": { "type": "string" }, "confidence": { "enum": ["reproduced", "suspected"] } } },
+        "reproduction": { "type": ["object", "null"], "properties": { "command": { "type": "string" }, "tail": { "type": "string" } } },
+        "owner": { "type": "object", "properties": { "slice": { "type": ["string", "null"] }, "insideCriteria": { "type": "boolean" }, "cites": { "type": ["string", "null"] } } },
+        "scope": { "type": "object", "required": ["inside"], "properties": { "inside": { "type": "boolean" }, "cites": { "type": ["string", "null"] } } },
+        "coverage": { "type": "array", "items": { "type": "object", "required": ["slice", "covers"], "properties": { "slice": { "type": "string" }, "covers": { "type": "boolean" }, "cites": { "type": ["string", "null"] }, "reason": { "type": ["string", "null"] }, "stepsLeft": { "type": ["integer", "null"] } } } },
+        "size": { "type": "object", "properties": { "steps": { "type": ["integer", "null"] } } },
+        "proposal": { "type": ["object", "null"], "properties": { "slice": { "type": "string" }, "title": { "type": "string" }, "scope": { "type": "string" }, "ac": { "type": "array", "items": { "type": "string" } }, "after": { "type": "array", "items": { "type": "string" } }, "before": { "type": "array", "items": { "type": "string" } }, "files": { "type": "array", "items": { "type": "string" } }, "complexity": { "type": "string" }, "uxImpact": { "type": "string" } } },
+        "packetFit": { "type": ["object", "null"], "properties": { "packet": { "type": ["string", "null"] }, "fits": { "type": "boolean" }, "cites": { "type": ["string", "null"] }, "reason": { "type": ["string", "null"] } } },
+        "attempt": { "type": "integer" },
+        "placement": { "type": "object", "description": "Written by wf.mjs issue place: the rung, the target, why, each lower rung with the reason it failed, the proof gate, and whether it was applied." }
+      }
+    },
     "prototypeLedger": {
       "type": "object",
       "description": "prototype-ledger.json — the proof ledger of a /wf loop prototype. The memory of the prototype; the chat is not. Validated on every write by post-write-verify, with the ledger rules of lib/prototype.mjs. scripts/prototype.mjs writes the commit ids and the exit status.",
@@ -2917,6 +2942,7 @@
         { "$ref": "#/$defs/optimizeSpecFrontmatter" },
         { "$ref": "#/$defs/goalFrontmatter" },
         { "$ref": "#/$defs/prototypeFrontmatter" },
+        { "$ref": "#/$defs/issueInvestigationFrontmatter" },
         { "$ref": "#/$defs/packetFrontmatter" },
         { "$ref": "#/$defs/listFrontmatter" },
         { "$ref": "#/$defs/depScanFrontmatter" },

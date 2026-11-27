@@ -98,6 +98,7 @@ Dispatch one subagent per [_subagents.md](_subagents.md). Its prompt tells it to
 - Step 6c (review scope): `slug-wide`, recorded with `by: standing default`.
 - When `02c-craft.md` exists, map each slice to its screen keys, and write `ux-impact` into each slice record ([design/_lane.md](design/_lane.md), "One duty per stage").
 - An intent-bearing choice, for example a slice that drops or narrows an acceptance criterion, is a stop. Return it as a question.
+- When `work/<packet-slug>.issues.json` exists next to the packet, the issues in it were placed in this packet by the run of an earlier packet. Put each one into the slice whose scope covers it, under `## Carried Issues`, or into a slice of its own when none does.
 
 When the subagent returns the warning, tell the person the slice count. The person can split the work packet later. When the subagent returns a question, ask the person, then dispatch the subagent again with the answer.
 
@@ -114,6 +115,15 @@ A driver runs in this checkout. Wait for the run to end, and hand back per yolo.
 ### `driver-stop`
 
 The last run stopped (`stoppedAt`, `reason`). Write `tell`, and follow the person's answer. To go on, resume the driver on `args.slug` per yolo.md "Resuming", as `launch-driver` does. The person can also skip the work packet (below).
+
+### `place-issue`
+
+The run reached its endpoint with open issues on its talk ([_issue-placement.md](_issue-placement.md)). A packet is not built while one is open.
+- Run each line of `commands`. Each one places an investigated issue, and applies the rung.
+- When the action has `ask`, the issues wait for the person. Ask each one with its held question (`key`), with the options "Add a slice in this workflow", "Leave it to a later packet or workflow" and "Park it", then record the answer with `decide add --kind answer --key <key>`, and run `next` again: the next `place-issue` applies it.
+- When the action has `relaunch`, the run did not investigate those issues. Launch the driver on `relaunch.args.slug` as `launch-driver` does: it investigates them, places them, and drives a slice that a placement adds.
+
+Then run `then.next`. An issue placed in the next packet goes to `work/<packet-slug>.issues.json`, and the `slice` step of that packet reads it.
 
 ### `built`
 

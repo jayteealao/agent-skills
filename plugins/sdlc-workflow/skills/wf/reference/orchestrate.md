@@ -128,7 +128,7 @@ For each milestone, in order:
 
 One unit is one agent. For each unit:
 
-1. Add it: `<o> unit <root> <slug> <file>` with `{ "role", "title", "milestone", "serves": [ids], "files": [paths], "fix-of"?, "harness"? }`. The command prints the number of the unit, and the paths of its task file and its result file.
+1. Add it: `<o> unit <root> <slug> <file>` with `{ "role", "title", "milestone", "serves": [ids], "files": [paths], "fix-of"?, "harness"?, "issue"? }` (`issue`: the talk id of a placed issue, see Issues). The command prints the number of the unit, and the paths of its task file and its result file.
 2. Pick an agent among the agents that the person allowed (Step 0.5): `<o> roster <root> <slug> --host <your host>` lists each agent that this machine can run, with its tier, and each role with the lowest tier that may do it ([orchestrate/_runner.md](orchestrate/_runner.md)). Record the pick and its reason once for each role, with `<wf> decide add --by delegate`.
 3. Write the task to the task file, from the template of the role in [orchestrate/_tasks.md](orchestrate/_tasks.md). The task carries each rule that the agent needs.
 4. Run `<o> dispatch <root> <slug> <n> --agent <roster id> --task <task file> --host <your host>`.
@@ -139,6 +139,18 @@ One unit is one agent. For each unit:
 6. A fix unit can go to the builder that did the first unit, with its context kept: add `--continue <the first unit>` to the dispatch. A validator always gets a fresh agent.
 
 A blocked agent, a usage limit, and the end of a terminal are in [orchestrate/_runner.md](orchestrate/_runner.md).
+
+# Issues
+
+A builder or a validator that finds an issue outside its unit does not fix it. It writes the issue as a `found` line that starts with `issue:` ([orchestrate/_tasks.md](orchestrate/_tasks.md)). `<o> result` posts each such line on the talk as an issue to `session`, and prints the ids in `issues`. You are the placer of the run, with the same placer as yolo ([_issue-placement.md](_issue-placement.md)):
+
+1. **Investigate.** Dispatch one read-only agent for each issue, with the procedure of [_issue-investigate.md](_issue-investigate.md). It writes `05i-issue-<key>.md`. The outcomes of the contract stand in for the slices: `coverage` names each unit that is planned and not started.
+2. **Place.** Run `wf_run { "op": "issue place", "slug": "<slug>", "as": "session", "id": "<id>" }` (CLI: `<wf> issue place <root> <slug> <id> --as session`), with no `apply`. It writes the placement into the record. Do what it says:
+   - placed, at any rung: add a unit for it with `"issue": "<id>"` in the unit file, serving the outcome that the issue breaks. `<o> unit` refuses a unit for an issue that is not placed.
+   - held for the person: hold it as a question with `<wf> decide hold <root> <slug> --key issue-<key> --stage orchestrate --question "<the question of the placement>" --options "Add a slice in this workflow|Leave it to a later packet or workflow|Park it"`, and go on with the rest. When the person chooses to add it, add the unit; the answer lets `<o> unit` take it.
+3. **Close.** Close the thread when the unit is added, or when the person parks the issue: `<wf> talk close <root> <slug> <id> --as session --reason "<what you did>"`.
+
+An issue outside the confirmed scope is always a question to the person.
 
 # Stops
 

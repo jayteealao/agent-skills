@@ -343,6 +343,30 @@
  *             move a slice to the roster of another workflow: the slice record goes with it,
  *             and the source says dropped, with moved-to
  *             Example: wf.mjs slice move . demo ui --to demo-ui --reason "its own PR"
+ *   slice    add <root> <slug> <slice> --scope s (--ac a | --ac-file f) [--title t] [--after x,y] [--before x,y]
+ *                [--files f,g] [--complexity c] [--ux-impact u] [--made-for k]
+ *                (--placement <05i-issue-k.md> | --by person --decision <id>) [--json]
+ *             add a slice to the roster during a run: its slice record and its roster row. Only a
+ *             rung-5 placement of issue place, or a decision of the person, adds one; the same
+ *             placement a second time changes nothing. --ac is one criterion a line; --ac-file is a
+ *             JSON list of criteria (a wf tool call gives ac as a list). --before
+ *             names slices that now wait for it, and none of them may have started
+ *             Example: wf.mjs slice add . demo cache-key --scope "the cache key includes the user" --ac "Given logout When login Then no stale page" --after auth --placement 05i-issue-t12.md
+ *   slice    carry <root> <slug> <slice> --issue <id> --text t
+ *                (--placement <05i-issue-k.md> | --by person --decision <id>) [--json]
+ *             carry an issue into the scope of a slice whose implement has not started: the slice
+ *             record lists it under Carried Issues and sets carried-at, so a plan written
+ *             before it is refreshed before the implement. Only a rung-3 or rung-4 placement does it
+ *             Example: wf.mjs slice carry . demo web --issue T-12 --text "stale cache key" --placement 05i-issue-t12.md
+ *   issue    place <root> <slug> <id> [--apply] [--running a,b] [--review-open] [--final] [--as a] [--json]
+ *             place the issue <id> of the talk from its investigation 05i-issue-<key>.md: the
+ *             lowest rung of the ladder that holds, written into the record. --apply does it: a
+ *             talk request to the stage that takes it, slice carry, slice add, the next packet of
+ *             a campaign list, or a held question to the person (outside the confirmed scope,
+ *             rung 7). An applied placement is not applied again; a refusal of its target ("cannot:"),
+ *             or a target that ended without it, places it one rung higher; an answer of the person
+ *             to the held question is applied. --running names the stages that run now
+ *             Example: wf.mjs issue place . demo T-12 --apply --running implement:web
  *   decide   add <root> <slug> --answer a [--key k] [--question q] [--kind k] [--by b] [--class c] [--replaces D-1,D-2]
  *                [--packet p] [--slice s] [--files f,g] [--stage s] [--rewrote f,g] [--source s] [--json]
  *             Example: wf.mjs decide add . demo --key db --question "Which database?" --answer postgres
@@ -408,20 +432,26 @@
  *             copy po-answers.md and steer.md into the store; a second run adds nothing
  *             Example: wf.mjs decide import . demo
  *   talk     post <root> <slug> --as a --to x[,y] --text t [--kind info|request|handover|done]
- *                [--refs a,b] [--wants-reply --fallback f] [--key k] [--json]
+ *                [--refs a,b] [--wants-reply --fallback f] [--key k] [--issue] [--json]
  *             post a message to the agents of the run. --as is your name: <stage>:<slice>,
  *             driver or session. --to is a slice, <stage>:<slice>, driver, session or all; a
  *             slice that has not started reads it when it starts. --wants-reply needs
  *             --fallback, what you do when no reply comes. A message informs or requests; it
- *             never binds, and a decision of the person is never asked here
+ *             never binds, and a decision of the person is never asked here. --issue: an issue
+ *             outside your own acceptance criteria, for the placer of the run (--to defaults to
+ *             driver; the lead of an orchestrate run is session). Give the reproduction in the
+ *             text and the files in --refs: a second report with the same refs joins the open thread
  *             Example: wf.mjs talk post . demo --as verify:api --to web --kind handover --text "fix in abc123: the cache key" --refs abc123
+ *             Example: wf.mjs talk post . demo --as implement:api --issue --text "npm test -- cache: stale key after logout" --refs src/cache.ts
  *   talk     reply <root> <slug> <id> --as a --text t [--refs a,b] [--wants-reply --fallback f] [--json]
  *             answer a message in its thread; the reply goes to its sender
  *             Example: wf.mjs talk reply . demo T-4 --as implement:web --text "merged at step 5"
- *   talk     read <root> <slug> --as a [--open] [--all] [--thread id] [--after id] [--peek] [--json]
+ *   talk     read <root> <slug> --as a [--open] [--all] [--thread id] [--after id] [--peek] [--issues] [--json]
  *             the messages for you that you have not seen, with their receipts written
  *             (--open: every open message for you, for the start of a stage; --all: closed
- *             ones too; --peek: no receipt). Read at each reading point that your prompt names
+ *             ones too; --peek: no receipt). Read at each reading point that your prompt names.
+ *             --issues: the open issues of the run with their placement and refusals (--all
+ *             adds the closed ones); it writes no receipt
  *             Example: wf.mjs talk read . demo --as implement:web
  *   talk     close <root> <slug> <id> --as a [--reason r] [--json]
  *             the matter of a message is handled: its thread leaves every inbox
@@ -712,7 +742,9 @@ import { DRAFT_DIR, INDEX_HEADER, INDEX_NAME, clearKept, docText, draftPath, dra
 import { parse as parseYaml, stringify as stringifyYaml } from '../lib/yaml.mjs';
 import { PATH_FORMS, getPath } from '../lib/record-path.mjs';
 import { SLICE_STAGES, SMALL_STAGE_FILES, STAGE_FILES, stageDone } from '../lib/stage-done.mjs';
-import { dropSlice, moveSlice } from '../lib/slice-ops.mjs';
+import { addSlice, carrySlice, dropSlice, moveSlice } from '../lib/slice-ops.mjs';
+import { placeAndApply } from '../lib/issue-apply.mjs';
+import { placementLine } from '../lib/issue-place.mjs';
 import { BOARD_KINDS, PROSE_KINDS, boardAdd, boardAdopt, boardApply, boardDigest, boardFieldArgs, boardMove, boardProse, boardRegroup, boardRemove, boardRender, boardSet } from '../lib/board-ops.mjs';
 import { appendStep, branchOf, commitIdentity, gitRevParse, lastSlice, planDocOf, planProblems, readPlan, readSteps, sliceRefusal, stepCheckout, whereLine, whereOf } from '../lib/steps.mjs';
 import { hostProcess, isMainModule } from '../lib/proc.mjs';
@@ -2279,7 +2311,7 @@ function backfillProject(projectRoot) {
 
 // The commands that change the state of a workflow: [root, slug] of each, for the GitHub layer.
 const CHANGES = {
-  record: ['put', 'set', 'edit', 'stage-done', 'migrate'], slice: ['drop', 'move'], board: ['add', 'move', 'regroup', 'remove', 'apply', 'set', 'prose', 'render', 'adopt'], page: ['put'], progress: ['set'], decide: ['add', 'hold'], findings: ['add', 'set'], ship: ['ready', 'finish'], step: ['start', 'done', 'complete', 'stop'], design: ['approve', 'migrate'],
+  record: ['put', 'set', 'edit', 'stage-done', 'migrate'], slice: ['drop', 'move', 'add', 'carry'], issue: ['place'], board: ['add', 'move', 'regroup', 'remove', 'apply', 'set', 'prose', 'render', 'adopt'], page: ['put'], progress: ['set'], decide: ['add', 'hold'], findings: ['add', 'set'], ship: ['ready', 'finish'], step: ['start', 'done', 'complete', 'stop'], design: ['approve', 'migrate'],
 };
 function changed(cmd, pos, opt = {}) {
   if (cmd === 'close' || (cmd === 'modernize' && !opt.check)) return pos[0] && pos[1] ? [pos[0], pos[1]] : null;
@@ -2722,12 +2754,36 @@ async function runMain(cmd, pos, opt) {
         out(opt.json ? { pass, runs, receipt: pass ? file : null, dirty } : pass ? `receipt ${file}: ${runs.map((r) => r.suite).join(', ')} passed at ${receipt.sha.slice(0, 8)}${named}` : [`no receipt: ${failed?.suite} failed`, ...(failed ? suiteLogLines(failed) : [])].join('\n'));
         return pass ? 0 : 1;
       }
+      case 'issue': {
+        const [verb, root, slug, id] = pos;
+        if (verb !== 'place' || !root || !slug || !id) throw usage('issue: place <root> <slug> <id> are required');
+        const projectRoot = resolve(root);
+        const dir = join(wfRoot(projectRoot), slug);
+        if (!existsSync(dir)) throw noFolder(`issue: no workflow folder ${dir}`, root);
+        let r;
+        try {
+          r = placeAndApply(dir, id, { projectRoot, apply: Boolean(opt.apply), running: opt.running ?? [], reviewOpen: Boolean(opt['review-open']), final: Boolean(opt.final), as: opt.as ?? 'driver' });
+        } catch (e) { throw refuse(`issue place: ${e.message}`, agentFix('Read the issue with talk read --issues, write its investigation first when it has none, then run the command again.')); }
+        out(opt.json ? r : r.already ? `${id}: placed before${r.waiting ? `, waiting for the answer ${r.waiting}` : ''} — ${r.placement ? placementLine(r.placement) : 'closed'}` : `${id}: ${placementLine(r.placement)}${r.applied ? ' (applied)' : ''}${(r.placement.lower ?? []).map((l) => `\n  rung ${l.rung}: ${l.failed}`).join('')}`);
+        return 0;
+      }
       case 'slice': {
         const [verb, root, slug, slice] = pos;
-        if (!['drop', 'move'].includes(verb) || !root || !slug || !slice) throw usage('slice: <drop|move> <root> <slug> <slice> are required');
+        if (!['drop', 'move', 'add', 'carry'].includes(verb) || !root || !slug || !slice) throw usage('slice: <drop|move|add|carry> <root> <slug> <slice> are required');
         const projectRoot = resolve(root);
         const dir = join(wfRoot(projectRoot), slug);
         if (!existsSync(dir)) throw noFolder(`slice: no workflow folder ${dir}`, root);
+        if (verb === 'add' || verb === 'carry') {
+          let r;
+          try {
+            r = verb === 'add'
+              ? addSlice(dir, { slice, scope: opt.scope, ac: opt['ac-file'] ? JSON.parse(readFileSync(opt['ac-file'], 'utf8')) : opt.ac, title: opt.title, after: opt.after, before: opt.before, files: opt.files, complexity: opt.complexity, uxImpact: opt['ux-impact'], madeFor: opt['made-for'], placement: opt.placement, by: opt.by, decision: opt.decision }, { decisions: decisionsOf(dir) })
+              : carrySlice(dir, slice, { issue: opt.issue, text: opt.text, placement: opt.placement, by: opt.by, decision: opt.decision }, { decisions: decisionsOf(dir) });
+          } catch (e) { throw refuse(`slice ${verb}: ${e.message}`, agentFix(`Place the issue with issue place first; slice ${verb} takes the record that it writes, as --placement.`)); }
+          await reconcileIndex(projectRoot);
+          out(opt.json ? r : r.already ? `${slice}: done before by the same placement` : verb === 'add' ? `added ${slice} to ${slug}${r.after.length ? `, after ${r.after.join(', ')}` : ''}` : `carried ${opt.issue} into ${slice}`);
+          return 0;
+        }
         const r = verb === 'drop'
           ? dropSlice(dir, slice, { reason: opt.reason })
           : moveSlice(dir, join(wfRoot(projectRoot), String(opt.to ?? '')), slice, { fromSlug: slug, toSlug: opt.to, reason: opt.reason });

@@ -49,7 +49,7 @@ import { basename, isAbsolute, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { appendRecord, writeFileAtomic } from '../lib/atomic-write.mjs';
-import { addDecision, decisionsOf, isLive } from '../lib/decisions.mjs';
+import { addDecision, answeredBy, decisionsOf, isLive } from '../lib/decisions.mjs';
 import { withFileLock } from '../lib/file-lock.mjs';
 import { OPEN_STATUSES, readLedger } from '../lib/findings.mjs';
 import { agentFix, failureOf, fixLines, personFix, refuse, withFix } from '../lib/fix.mjs';
@@ -64,6 +64,9 @@ import {
 import { endTerminal, launch, rosterOf, screenOf, sendText, sendTurn, terminalOf, terminalsOf, waitFor, exec } from '../lib/orchestrate-runner.mjs';
 import { readWorkFiles } from '../lib/packets.mjs';
 import { runDir, workflowDir } from '../lib/records-root.mjs';
+import { post as talkPost } from '../lib/talk.mjs';
+import { issueKeyOf, issueQuestionKey, issueRecordOf } from '../lib/issue-place.mjs';
+import { frontmatterOfDoc } from '../lib/records.mjs';
 import { commitRecords } from '../lib/records-sync.mjs';
 import { ensureRunDir } from '../lib/run-files.mjs';
 import { parse, stringify } from '../lib/yaml.mjs';
@@ -355,10 +358,20 @@ function unitCmd(root, slug, [file]) {
       if (hit.length && ROLES[role].builds) throw refuse(`a hand-back is in progress: ${hit.join(', ')} belongs to a work packet that is not started, and nothing new starts`, agentFix('Write units only for the work packets that are started: state lists them.', line(root, slug, 'state')));
     }
     const fixOf = input['fix-of'] == null ? null : Number(input['fix-of']);
+    // A unit for an issue that the run found is placed first: by issue place, or by an answer of the person.
+    const issue = str(input.issue);
+    if (issue) {
+      const key = issueKeyOf(issue);
+      const placement = frontmatterOfDoc(workflowDir(root, slug), issueRecordOf(key))?.placement;
+      const answer = answeredBy(decisionsOf(workflowDir(root, slug)), issueQuestionKey(key));
+      if (!(placement && placement.status === 'placed') && !answer) {
+        throw refuse(`the unit is for the issue ${issue}, which is not placed`, agentFix(`Investigate the issue, run issue place for it, and add the unit only when the placement says so (orchestrate.md, Issues).`, `node "${WF_WRAPPER}" issue place "${root}" ${slug} ${issue} --as session`));
+      }
+    }
     const n = s.run.units.reduce((m, u) => Math.max(m, u.n), 0) + 1;
     s.run.units.push({
       n, role, title: str(input.title), milestone: str(input.milestone) || null, serves, files: list(input.files).map(posix),
-      ...(input.harness ? { harness: true } : {}), ...(fixOf ? { 'fix-of': fixOf } : {}), state: 'planned', 'added-at': nowIso(),
+      ...(input.harness ? { harness: true } : {}), ...(fixOf ? { 'fix-of': fixOf } : {}), ...(issue ? { issue } : {}), state: 'planned', 'added-at': nowIso(),
     });
     return { ok: true, unit: n, role, dirs: { task: posix(join(workDir(root, slug), `task-${n}.md`)), result: posix(join(workDir(root, slug), `result-${n}.json`)) } };
   });
@@ -565,7 +578,12 @@ function resultCmd(root, slug, [n, file]) {
     // A builder that stopped can leave a change in the working tree: the next builder must not get it unseen.
     const leftPaths = role.builds && r.status === 'blocked' ? [...new Set([...list(u.files), ...list(r.files)].map(posix).filter(Boolean))] : [];
     const left = leftPaths.length ? spawnSync('git', ['-C', root, 'status', '--porcelain', '--', ...leftPaths], { encoding: 'utf8', windowsHide: true }).stdout.split(/\r?\n/).filter(Boolean).map((l) => l.slice(3)) : [];
-    const answer = { ok: true, unit: u.n, role: u.role, state: u.state, ...(left.length ? { uncommitted: left, do: 'The blocked agent left changes in these files. Read the diff. Keep it for the next unit and say so in its task, or restore each file with git restore. Never leave it unseen.' } : {}), ...(committed ? { committed, note: 'The builder left its change uncommitted, and the script committed the files that it listed.' } : {}) };
+    // A found line that starts with "issue:" is an issue outside the unit: it goes on the talk to the lead.
+    const issues = [];
+    for (const x of list(r.found).map(str).filter((t) => /^issue:/i.test(t))) {
+      try { const p = talkPost(workflowDir(root, slug), { by: `${u.role}:${u.n}`, to: ['session'], issue: true, text: x.replace(/^issue:\s*/i, '') }); issues.push(p.joined ?? p.entry.id); } catch { /* a talk that cannot be written leaves the line in found */ }
+    }
+    const answer = { ok: true, unit: u.n, role: u.role, state: u.state, ...(issues.length ? { issues, place: 'Investigate each issue and place it (orchestrate.md, Issues).' } : {}), ...(left.length ? { uncommitted: left, do: 'The blocked agent left changes in these files. Read the diff. Keep it for the next unit and say so in its task, or restore each file with git restore. Never leave it unseen.' } : {}), ...(committed ? { committed, note: 'The builder left its change uncommitted, and the script committed the files that it listed.' } : {}) };
     if (role.validator && u.role !== 'code-validator') {
       if (!head) throw refuse('the checkout has no commit: a verdict is recorded for a commit', personFix('Make the first commit of the repo, then run the validation again.'));
       // The validator saw the code of its start. A commit that landed while it ran was not validated.

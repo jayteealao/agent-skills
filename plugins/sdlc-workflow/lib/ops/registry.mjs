@@ -26,7 +26,7 @@ const ROWS = {
     | design state | design refs check | design capture-path | design server status | design server url | record evidence`,
   wf_run: `record put | record draft | record edit | record set | record stage-done | record migrate | findings add | findings set
     | board add | board apply | board set | board prose | board render | board adopt | board move | board regroup | board remove
-    | slice drop | slice move | progress set | talk post | talk reply | talk close | talk ping | talk claim | talk release | msg post
+    | slice drop | slice move | slice add | slice carry | issue place | progress set | talk post | talk reply | talk close | talk ping | talk claim | talk release | msg post
     | page put | profile set | profile record | profile budget | index
     | design init | design foundation | design component add | design component link | design component remove | design component spec
     | design components scan | design components none | design components verify | design screen add | design screen remove | design screen rename

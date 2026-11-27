@@ -57,7 +57,7 @@ function nullable(v) {
  */
 export function driveArgs({ projectRoot, referenceRoot, slug, run, staged, slice = null, answered = null, delegate = false, reviewFindings = false, planAhead = true, verifyBehind = true, pairSlices = false }) {
   return {
-    projectRoot, referenceRoot, slug, host: 'codex', runId: run, models: staged.models, recordsRoot: staged.recordsRoot,
+    projectRoot, referenceRoot, slug, host: 'codex', runId: run, models: staged.models, recordsRoot: staged.recordsRoot, ...(staged.issues ? { issues: staged.issues } : {}),
     ...(slice ? { slice } : {}), ...(answered ? { answered } : {}), ...(delegate || staged.delegate ? { delegate: true } : {}),
     ...(reviewFindings ? { reviewFindings: true } : {}),
     // The overlap of the walk: the driver has both on and pairs off unless a value says otherwise.

@@ -282,6 +282,12 @@ function talkClause(stage, slice) {
     `agent waits for you: answer it first.\n` +
     `- POST when another agent needs to know: you changed a file or a behaviour that the plan of another slice ` +
     `names, or made a commit that an agent beside you builds on. ${wf(`${talk} post ${at} --as ${me} --to <slice> --text "<3 sentences or fewer>" --refs <commit,file>`)}.\n` +
+    `- AN ISSUE outside the acceptance criteria of your own stage (a bug, a gap, a broken test of other code): ` +
+    `do not fix it, not even one line, do not name a slice for it, and do not edit the roster. Post it once with ` +
+    `${wf(`${talk} post ${at} --as ${me} --issue --text "<what fails, and the command that shows it>" --refs <file:line,commit>`)} ` +
+    `and go on with your own work: the driver investigates and places it. When the driver delivers an issue to ` +
+    `you, take it into your stage and close the thread when it is handled; when you cannot take it, reply ` +
+    `"cannot: <why>" in the thread.\n` +
     `- ASK another agent only for what you need to go on: add \`--wants-reply --fallback "<what you do with no ` +
     `reply>"\`, then wait with ${wf(`${talk} wait ${at} --as ${me}`)}, again at "still waiting". When the wait says ` +
     `so, take your fallback and reply that you did. Never ask the person here: hold a question for the person ` +
@@ -786,11 +792,15 @@ function walkOrder(slices) {
 // `left` are the slices not yet driven, in walk order; `fresh` is a rosterNow() result;
 // `known` holds every slice that orient saw. The fresh depends-on and roster order win.
 // A slice the roster now marks skipped or dropped, or no longer lists, is retired, so the
-// walk skips it. A slice added after orient is reported, not driven: orient never judged
-// its stages or its design gate, so the next run drives it. An empty read keeps `left`.
-function rewalk(left, fresh, known) {
+// walk skips it. A slice added after orient is driven in this run when nothing of it exists
+// yet (fresh: no stage record, so orient's done rules have nothing to judge), its design gate
+// holds (ux-impact none, or `designSettled`), and every slice it depends on is on the roster;
+// else it is reported and the next run drives it. A slice whose issues were carried in after
+// its plan is listed in `carried`: its plan is written again before its implement. An empty
+// read keeps `left`.
+function rewalk(left, fresh, known, { designSettled = false } = {}) {
   const rows = ((fresh && fresh.slices) || []).filter(r => r && r.slice)
-  if (!rows.length) return { list: left, changes: [], added: [] }
+  if (!rows.length) return { list: left, changes: [], added: [], taken: [], carried: [] }
   const at = new Map(rows.map(r => [r.slice, r]))
   const pos = new Map(rows.map((r, i) => [r.slice, i]))
   const changes = []
@@ -807,14 +817,30 @@ function rewalk(left, fresh, known) {
     if (dependsOn.join('\n') !== was.join('\n')) changes.push(`'${s.slice}' now runs after ${dependsOn.join(', ') || 'nothing'}`)
     return { ...s, status, dependsOn }
   })
+  const added = []
+  const taken = []
+  for (const r of rows) {
+    if (known.has(r.slice)) continue
+    const deps = Array.isArray(r.dependsOn) ? r.dependsOn.map(String) : []
+    const closed = ['complete', 'skipped', 'dropped', 'deferred'].includes(String(r.roster))
+    const designOk = r.uxImpact === 'none' || designSettled === true
+    const depsOk = deps.every(d => at.has(d))
+    if (r.fresh === true && !closed && designOk && depsOk) {
+      taken.push(r.slice)
+      kept.push({ slice: r.slice, status: r.roster || 'defined', dependsOn: deps, complexity: r.complexity || null, reverifyReason: 'new-work', added: true, stages: { plan: 'todo', implement: 'todo', verify: 'todo', review: 'todo' } })
+    } else {
+      added.push({ slice: r.slice, why: closed ? `it is ${r.roster}` : r.fresh !== true ? 'it has stage records that orient did not judge' : !designOk ? 'its ux-impact is not none and the design is not settled' : `it depends on ${deps.filter(d => !at.has(d)).join(', ')}, which the roster does not list` })
+    }
+  }
+  if (taken.length) changes.push(`added: ${taken.join(', ')}`)
   const rank = (s) => (pos.has(s.slice) ? pos.get(s.slice) : rows.length)
   const ordered = kept.map((s, i) => ({ s, i })).sort((a, b) => rank(a.s) - rank(b.s) || a.i - b.i).map(x => x.s)
   const list = walkOrder(ordered)
   if (list.map(s => s.slice).join('\n') !== left.map(s => s.slice).join('\n')) {
     changes.push(`the walk is now ${list.map(s => s.slice).join(' → ')}`)
   }
-  const added = rows.map(r => r.slice).filter(n => !known.has(n))
-  return { list, changes, added }
+  const carried = rows.filter(r => r.carriedAt && (!r.planAt || String(r.carriedAt) > String(r.planAt))).map(r => r.slice)
+  return { list, changes, added, taken, carried }
 }
 
 // The stage prompt states the shared rules once. A stage agent does not read again the files
@@ -1345,6 +1371,9 @@ const ORIENT_RESULT = {
     leftoverBranches: { type: 'array', items: { type: 'object', properties: { branch: { type: 'string' }, kind: { type: 'string' }, slice: { type: 'string' }, ahead: { type: 'number' } } } },
     reviewScope: { enum: ['per-slice', 'slug-wide'] },
     workflowType: { type: 'string' },
+    // The design gate of the slug: true when no design is needed or the design is settled. A slice
+    // added during the run whose ux-impact is not none is driven only when this is true.
+    designSettled: { type: 'boolean' },
     // single-scope workflow (a forwarded rca, or a one-slice standard workflow): 03-slice.md is absent and
     // orient synthesized a one-entry roster [selected-slice]. Stage files are un-suffixed; reviewScope is slug-wide.
     singleScope: { type: 'boolean' },
@@ -1804,7 +1833,8 @@ async function orient() {
     `WITHOUT the field keeps the slug rule. When design is needed and not settled, and at least one roster slice ` +
     `whose plan is not yet complete lacks ux-impact: none, set ok=false, blockReason='design not confirmed by a ` +
     `person (design stage pending)', route='/wf design ${slug}' ('/wf design ${slug} amend' when the design is ` +
-    `reopened). When every such slice carries ux-impact: none, the run proceeds.\n` +
+    `reopened). When every such slice carries ux-impact: none, the run proceeds. Return designSettled: true when ` +
+    `design is not needed or is settled, and false otherwise.\n` +
     `6. For ALL roster slices (in roster order — the COMPLETE list, both modes; the full roster is needed so ` +
     `slice-mode can route to the next slice), check with ${wf(`${REC('list')}`)} and ${wf(`${REC('get')} <name>`)} which of ` +
     `plan/implement/verify/review already exist ` +
@@ -2827,6 +2857,28 @@ const ROSTER_NOW = {
           slice: { type: 'string' },
           roster: { type: ['string', 'null'] },
           dependsOn: { type: 'array', items: { type: 'string' } },
+          // A slice added during the run is driven only when it has no stage record yet (fresh)
+          // and its design gate holds (uxImpact none, or the design of the slug is settled).
+          fresh: { type: 'boolean' },
+          uxImpact: { type: ['string', 'null'] },
+          complexity: { type: ['string', 'null'] },
+          // An issue carried into the slice after its plan: the plan is refreshed before the implement.
+          carriedAt: { type: ['string', 'null'] },
+          planAt: { type: ['string', 'null'] },
+        },
+      },
+    },
+    // The open issues of the talk (talk read --issues): the placer of the run is this driver.
+    issues: {
+      type: 'array',
+      items: {
+        type: 'object',
+        required: ['id'],
+        properties: {
+          id: { type: 'string' }, by: { type: 'string' }, text: { type: 'string' },
+          refs: { type: 'array', items: { type: 'string' } },
+          placed: { type: ['object', 'null'] },
+          refused: { type: 'array' },
         },
       },
     },
@@ -2834,17 +2886,93 @@ const ROSTER_NOW = {
 }
 
 // rosterNow() — the roster as it is now, between two slices. A person or a campaign can
-// change the order (campaign slice-order) or retire a slice while a slice runs, and
+// change the order (campaign slice-order), retire a slice, or add one while a slice runs, and
 // orient read the roster only once, at the start. This script reads no file itself, so a
-// small agent runs the status command, and rewalk() takes the order from its answer.
+// small agent runs the status command, and rewalk() takes the order from its answer. The same
+// agent reads the open issues of the talk, for the placement of issues (issueBoundary).
 async function rosterNow(afterSlice) {
   return await spawnAgent(
     `ROSTER RE-READ for slug '${slug}', after slice '${afterSlice}'. READ-ONLY — write, edit and commit nothing.\n\n` +
-    `Run ${wf(`${WF_CMD} status "${projectRoot}" ${slug} --json`)} once. Return its slices[] in the order of the ` +
-    `output, each as { slice, roster, dependsOn } with the values copied as they are. Read no other file, ` +
-    `and do not reorder, add or leave out an entry. When the command fails, return { slices: [] }.` +
+    `1. Run ${wf(`${WF_CMD} status "${projectRoot}" ${slug} --json`)} once. Return its slices[] in the order of the ` +
+    `output, each as { slice, roster, dependsOn, fresh, uxImpact, complexity, carriedAt, planAt } with the values ` +
+    `copied as they are. Do not reorder, add or leave out an entry. When the command fails, return { slices: [] }.\n` +
+    `2. Run ${wf(`${WF_CMD} talk read "${projectRoot}" ${slug} --as driver --issues --open --json`)} once. Return its ` +
+    `issues[] as issues, each as { id, by, text, refs, placed, refused } copied as they are ([] when it fails).\n` +
+    `Read no other file.` +
     heartbeatClause(`roster:${afterSlice}`, 'Drive', 'roster', afterSlice),
     { schema: ROSTER_NOW, label: `roster:${afterSlice}`, phase: 'Drive', ...SONNET }
+  )
+}
+
+// ---- issues: investigate, then place --------------------------------------------------
+// A stage posts an issue outside its own criteria on the talk (talk post --issue); the
+// person's issues come through the session the same way. At each boundary between slices the
+// driver starts a read-only investigate agent for each new issue, at most ISSUE_MAX_PARALLEL
+// at once and ISSUE_MAX_PER_RUN in a run, and does not wait for it: the investigations run
+// alongside the next slice. At the next boundary one place agent runs `issue place --apply`
+// for each finished investigation, each refused or ended delivery, and each issue held for
+// the person. The rung is chosen in code (lib/issue-place.mjs), never by an agent.
+const ISSUE_MAX_PARALLEL = Number.isInteger(OPT.issues && OPT.issues.maxParallel) && OPT.issues.maxParallel > 0 ? OPT.issues.maxParallel : 3
+const ISSUE_MAX_PER_RUN = Number.isInteger(OPT.issues && OPT.issues.maxPerRun) && OPT.issues.maxPerRun > 0 ? OPT.issues.maxPerRun : 12
+const issueKeyOf = (id) => `t${String(id || '').replace(/\D/g, '')}`
+// The slices whose plan is written again before their implement: issues were carried in after it.
+const CARRIED_ISSUES = new Set()
+const INVESTIGATED = {
+  type: 'object',
+  required: ['ok'],
+  properties: { ok: { type: 'boolean' }, record: { type: 'string' }, note: { type: 'string' } },
+}
+const PLACED = {
+  type: 'object',
+  required: ['results'],
+  properties: {
+    results: {
+      type: 'array',
+      items: {
+        type: 'object',
+        required: ['id'],
+        properties: {
+          id: { type: 'string' }, status: { type: ['string', 'null'] }, rung: { type: ['string', 'number', 'null'] },
+          target: { type: ['string', 'null'] }, action: { type: ['string', 'null'] }, why: { type: ['string', 'null'] },
+          already: { type: 'boolean' }, waiting: { type: ['string', 'null'] }, error: { type: ['string', 'null'] },
+        },
+      },
+    },
+  },
+}
+
+// The investigation of one issue: a read-only agent that writes only the record 05i-issue-<key>.md.
+async function investigateIssue(issue, final) {
+  const key = issueKeyOf(issue.id)
+  const record = `05i-issue-${key}.md`
+  return await spawnAgent(
+    `ISSUE INVESTIGATION for slug '${slug}', issue ${issue.id}${final ? ' (SECOND INVESTIGATION: the first one left facts out)' : ''}. ` +
+    `READ-ONLY on the code: edit no source file, make no commit, switch no branch. The project root is ${projectRoot} ` +
+    `(absolute); run git as \`${GIT} …\`.\n\n` +
+    `The issue, posted by ${issue.by}: "${String(issue.text || '').slice(0, 1200)}"${(issue.refs || []).length ? ` {${issue.refs.join(', ')}}` : ''}.\n\n` +
+    `Read ${referenceRoot}/_issue-investigate.md with ${READ_TOOL} and follow it: reproduce the issue, find its cause with ` +
+    `file:line and the commit that brought it in (also on the side branches of this run: \`${GIT} branch --list "verify/${slug}/*" "side/${slug}/*"\`), ` +
+    `find the slice that owns it, judge whether the confirmed scope of the workflow covers it, and judge for EACH open ` +
+    `slice of ${wf(`${WF_CMD} status "${projectRoot}" ${slug} --json`)} (every slice that is not complete, skipped or dropped) ` +
+    `whether its scope covers it, citing the line of its slice record. Do not choose where the issue goes: the driver places it in code.\n\n` +
+    `Write the record as the draft ${DRAFT_DIR}/${record} (frontmatter type: issue-investigation, slug: ${slug}, issue: ${issue.id}, ` +
+    `key: ${key}, from: ${issue.by}${final ? ', attempt: 2' : ''}), then put it: ${wf(REC('put', record))}. Return { ok: true, record: '${record}' }, ` +
+    `or { ok: false, note } when the record could not be put.` +
+    heartbeatClause(`investigate:${issue.id}`, 'Drive', 'investigate', null),
+    { schema: INVESTIGATED, label: `investigate:${issue.id}`, phase: 'Drive', ...SONNET }
+  )
+}
+
+// One agent applies the placements of a boundary: `issue place --apply` for each issue.
+async function placeIssues(ids, { after, running = [], reviewOpen = false, final = [] } = {}) {
+  const lines = ids.map(id => `- ${wf(`${WF_CMD} issue place "${projectRoot}" ${slug} ${id} --apply${running.length ? ` --running ${running.join(',')}` : ''}${reviewOpen ? ' --review-open' : ''}${final.includes(id) ? ' --final' : ''} --json`)}`).join('\n')
+  return await spawnAgent(
+    `ISSUE PLACEMENT for slug '${slug}', after slice '${after}'. Run each command below once, in this order, and change ` +
+    `nothing else: the command chooses the rung and does it.\n${lines}\n\n` +
+    `Return { results: [...] } with one entry for each issue: { id, status, rung, target, action, why } from placement of ` +
+    `the JSON output, already and waiting when the output has them, and error (the first line of stderr) when the command failed.` +
+    heartbeatClause(`place:${after}`, 'Drive', 'place', after),
+    { schema: PLACED, label: `place:${after}`, phase: 'Drive', ...SONNET }
   )
 }
 
@@ -2883,6 +3011,14 @@ async function driveChain(stages, sliceArg, idx, opts = {}) {
   let sentBack = null
   let implHead = null
   const shaOf = (h) => (typeof h === 'string' && /^[0-9a-f]{7,40}$/.test(h.trim()) ? h.trim() : null)
+  // Issues carried into the slice record after its plan was written: the plan is written again first.
+  if (opts.carriedIssues === true && done.implement !== 'done') {
+    if (done.plan === 'done' || opts.planAhead || !stages.includes('plan')) {
+      refresh = { reason: 'issues were carried into the slice record after its plan was written (its section "Carried Issues")' }
+      if (!queue.includes('plan')) queue.unshift('plan')
+      log(`the plan of '${sliceArg}' is written again: issues were carried into the slice after its plan`)
+    }
+  }
   if (opts.forceFrom && CHAIN_ORDER.includes(opts.forceFrom)) {
     CHAIN_ORDER.slice(CHAIN_ORDER.indexOf(opts.forceFrom)).filter(s => stages.includes(s)).forEach(s => forced.add(s))
     carried = opts.carried ? { ...opts.carried, routedBack: opts.forceFrom } : null
@@ -3500,10 +3636,10 @@ if (idx.workflowType === 'update-deps') {
     results.push(ra, rb)
     const take = (into, chain) => { into.ran.push(...(chain.ran || [])); if (chain.stopped) Object.assign(into, { stoppedAt: chain.stoppedAt, reason: chain.reason, stopped: true }) }
     for (const [x, into] of [[a, ra], [b, rb]]) {
-      if (planDone(x.slice)) continue
+      if (planDone(x.slice) && !CARRIED_ISSUES.has(x.slice)) continue
       const pa = plansAhead.get(x.slice)
       plansAhead.delete(x.slice)
-      const c = await driveChain(['plan'], x.slice, idx, { noWriteBack: true, ...(pa ? { planAhead: pa } : {}) })
+      const c = await driveChain(['plan'], x.slice, idx, { noWriteBack: true, ...(pa ? { planAhead: pa } : {}), ...(CARRIED_ISSUES.delete(x.slice) ? { carriedIssues: true } : {}) })
       take(into, c)
       if (c.stopped) return { stop: stopOf(c, x.slice), paired: true }
       plannedEarly.add(x.slice)
@@ -3539,6 +3675,122 @@ if (idx.workflowType === 'update-deps') {
       if (vb.stopped) return { stop: stopOf(vb, b.slice), paired: true }
     }
     return { stop: null, paired: true }
+  }
+
+  // ---- the issues of the talk, at each slice boundary ---------------------
+  // issueRuns: the investigations of this run (id → { done, final, result }). They run alongside
+  // the next slice; their placement is applied at the boundary after it. `finished` holds the
+  // slices that ended in this run: an issue delivered to one of their stages and not closed is
+  // placed again, one rung higher.
+  const issueRuns = new Map()
+  const finished = new Set()
+  const issueReport = { investigated: [], placed: [], held: [], notStarted: [] }
+  let issuesStarted = 0
+  const activeInvestigations = () => [...issueRuns.values()].filter(r => !r.done).length
+
+  function startInvestigations(open) {
+    for (const i of open) {
+      if (issueRuns.has(i.id) || i.placed) continue
+      if (issuesStarted >= ISSUE_MAX_PER_RUN) {
+        if (!issueReport.notStarted.includes(i.id)) { issueReport.notStarted.push(i.id); log(`issue ${i.id} is not investigated in this run: ${ISSUE_MAX_PER_RUN} were (issues.maxPerRun); the next run takes it`) }
+        continue
+      }
+      if (activeInvestigations() >= ISSUE_MAX_PARALLEL) break
+      startOne(i, false)
+    }
+  }
+  function startOne(issue, final) {
+    if (!final) issuesStarted++
+    const run = { done: false, final, issue }
+    run.promise = investigateIssue(issue, final).catch(() => null).then(r => { run.done = true; run.result = r; return r })
+    issueRuns.set(issue.id, run)
+    log(`yolo → investigate issue ${issue.id} (from ${issue.by})${final ? ' again, for the facts that were left out' : ''}, alongside the next slice`)
+  }
+
+  // The issues to place now: each finished investigation, each refused delivery, each delivery
+  // to a stage that ended without it, and each issue held for the person (an answer may be in).
+  function issuesToPlace(open) {
+    const ids = []
+    for (const i of open) {
+      const run = issueRuns.get(i.id)
+      if (run && !run.done) continue
+      if (run && run.done && !run.placedOnce) { ids.push(i.id); continue }
+      if (!i.placed) continue
+      const text = String(i.placed.text || '')
+      const target = (text.match(/→ (\S+:\S+)/) || [])[1]
+      const ended = target && target !== 'review:slug-wide' && finished.has(target.split(':')[1])
+      if ((i.refused || []).length || ended || /held for the person/.test(text)) ids.push(i.id)
+    }
+    return ids
+  }
+
+  // issueBoundary() — between two slices: place what is ready, then start new investigations.
+  // Returns the roster read to walk on (read again when a placement changed it).
+  async function issueBoundary(after, fresh, { drain = false } = {}) {
+    if (drain) {
+      const waiting = [...issueRuns.values()].filter(r => !r.done)
+      if (waiting.length) log(`the walk waits for ${waiting.length} issue investigation(s) before the end of the run`)
+      await Promise.all(waiting.map(r => r.promise))
+    }
+    const open = (fresh && fresh.issues) || []
+    const ids = issuesToPlace(open)
+    let changed = false
+    if (ids.length) {
+      const finals = ids.filter(id => (issueRuns.get(id) || {}).final)
+      const running = pendingVerify ? [`verify:${pendingVerify.slice}`] : []
+      const placed = await placeIssues(ids, { after, running, reviewOpen: !reviewPer, final: finals })
+      for (const r of (placed && placed.results) || []) {
+        const run = issueRuns.get(r.id)
+        if (run) run.placedOnce = true
+        if (r.error) { log(`issue ${r.id} is not placed: ${r.error}`); continue }
+        if (r.already && !r.waiting) continue
+        if (r.status === 'incomplete') {
+          if (run && !run.final && issuesStarted <= ISSUE_MAX_PER_RUN) { startOne(run.issue, true); continue }
+          log(`issue ${r.id}: the investigation left facts out — ${r.why || 'no detail'}`)
+          continue
+        }
+        if (r.waiting || r.status === 'ask') {
+          if (!issueReport.held.includes(r.id)) { issueReport.held.push(r.id); log(`issue ${r.id} is held for the person: ${r.why || 'see the held question'} — the run builds the other slices`) }
+          continue
+        }
+        issueReport.placed.push({ id: r.id, rung: r.rung, target: r.target, action: r.action })
+        log(`issue ${r.id} placed: rung ${r.rung} → ${r.target || 'none'} (${r.action}) — ${r.why || ''}`)
+        if (r.action === 'add' || r.action === 'carry') changed = true
+      }
+      if (changed) fresh = await rosterNow(after)
+    }
+    if (!drain) startInvestigations(((fresh && fresh.issues) || []))
+    for (const [id, run] of issueRuns) if (run.done && run.result && run.result.ok && !issueReport.investigated.includes(id)) issueReport.investigated.push(id)
+    return fresh
+  }
+
+  // walkOn() — the walk after a boundary: the fresh roster, the slices added to it, and the
+  // plans written again for issues that were carried in.
+  async function walkOn(after, left, known, announced) {
+    let fresh = await rosterNow(after)
+    fresh = await issueBoundary(after, fresh)
+    const next = rewalk(left, fresh, known, { designSettled: idx.designSettled === true })
+    return takeWalk(after, next, known, announced)
+  }
+  async function takeWalk(after, next, known, announced) {
+    if (next.changes.length) log(`roster changed during '${after}': ${next.changes.join('; ')}`)
+    for (const n of next.taken) {
+      const e = next.list.find(x => x.slice === n)
+      known.add(n)
+      if (e && !idx.slices.some(x => x.slice === n)) idx.slices.push(e)
+      log(`slice '${n}' was added to the roster during this run — driven in this run`)
+    }
+    const added = next.added.filter(a => !announced.has(a.slice))
+    added.forEach(a => announced.add(a.slice))
+    if (added.length) log(`slice(s) added to the roster after this run started: ${added.map(a => `${a.slice} (${a.why})`).join(', ')} — not driven in this run; the next /wf yolo ${slug} drives them`)
+    for (const n of next.carried) {
+      if (!next.list.some(x => x.slice === n) || CARRIED_ISSUES.has(n)) continue
+      const pa = plansAhead.get(n)
+      if (pa) { await pa.promise; plansAhead.delete(n) }
+      plannedEarly.delete(n)
+      CARRIED_ISSUES.add(n)
+    }
+    return next.list
   }
 
   async function walkRoster(list, bounded) {
@@ -3578,11 +3830,8 @@ if (idx.workflowType === 'update-deps') {
           workSinceCheckpoint = true
           const lateP = await settleBehind()
           if (pair.stop || lateP) return bothStops(pair.stop, lateP)
-          if (left.length) {
-            const fresh = rewalk(left, await rosterNow(mate.slice), known)
-            if (fresh.changes.length) log(`roster changed during '${s.slice}' and '${mate.slice}': ${fresh.changes.join('; ')}`)
-            left = fresh.list
-          }
+          finished.add(s.slice); finished.add(mate.slice)
+          left = await walkOn(mate.slice, left, known, announced)
           continue
         }
         // Not a pair: both plans are written, and the two slices run one after the other.
@@ -3607,7 +3856,7 @@ if (idx.workflowType === 'update-deps') {
       // verify join the tip before this slice is verified.
       const split = behind || !!pendingVerify
       const stagesNow = (split ? ['plan', 'implement'] : perSliceStages).filter(x => !(x === 'plan' && plannedEarly.has(s.slice)))
-      const chain = await driveChain(stagesNow, s.slice, idx, { bounded, beforeImplement, ...(ahead ? { planAhead: ahead } : {}), ...(split ? { noWriteBack: true } : {}), ...(pendingVerify ? { beside: { slice: pendingVerify.slice, branch: pendingVerify.side.branch } } : {}) })
+      const chain = await driveChain(stagesNow, s.slice, idx, { bounded, beforeImplement, ...(CARRIED_ISSUES.delete(s.slice) ? { carriedIssues: true } : {}), ...(ahead ? { planAhead: ahead } : {}), ...(split ? { noWriteBack: true } : {}), ...(pendingVerify ? { beside: { slice: pendingVerify.slice, branch: pendingVerify.side.branch } } : {}) })
       results.push(chain)
       if (touchesCharter(chain.ran, idx.charter)) workSinceCheckpoint = true
       // The verify of the slice before this one ran during this implement: its result is due now.
@@ -3659,13 +3908,15 @@ if (idx.workflowType === 'update-deps') {
           }
         }
       }
-      if (!bounded && left.length && (chain.ran || []).length) {
-        const fresh = rewalk(left, await rosterNow(s.slice), known)
-        if (fresh.changes.length) log(`roster changed during '${s.slice}': ${fresh.changes.join('; ')}`)
-        const added = fresh.added.filter(n => !announced.has(n))
-        added.forEach(n => announced.add(n))
-        if (added.length) log(`slice(s) added to the roster after this run started: ${added.join(', ')} — not driven in this run; the next /wf yolo ${slug} drives them`)
-        left = fresh.list
+      finished.add(s.slice)
+      if (!bounded && (chain.ran || []).length) left = await walkOn(s.slice, left, known, announced)
+      // The end of the walk: the investigations still running finish, and their placements are
+      // applied, so that a slice added for an issue is still driven in this run.
+      if (!bounded && !left.length && issueRuns.size) {
+        for (let round = 0; round < 3 && !left.length && [...issueRuns.values()].some(r => !r.done || !r.placedOnce); round++) {
+          const fresh = await issueBoundary(s.slice, await rosterNow(s.slice), { drain: true })
+          left = await takeWalk(s.slice, rewalk([], fresh, known, { designSettled: idx.designSettled === true }), known, announced)
+        }
       }
     }
     return null
@@ -3697,6 +3948,8 @@ if (idx.workflowType === 'update-deps') {
   }
   // Surface the charter checkpoints on the slug hand-back (both the stop and the endpoint).
   if (charterCheckpoints.length && !outcome.charterCheckpoints) outcome.charterCheckpoints = charterCheckpoints
+  // The issues of the talk that this run investigated, placed, or held for the person.
+  if (issueReport.investigated.length || issueReport.placed.length || issueReport.held.length || issueReport.notStarted.length) outcome.issues = issueReport
 }
 
 // Collect, then RECONCILE against what was actually recorded. The driver's

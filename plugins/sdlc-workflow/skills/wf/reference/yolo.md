@@ -52,14 +52,15 @@ A re-challenge is a bounded wall probe, not a verify. A read-only agent runs the
 
 ## Roster changes during a run
 
-Orientation reads the roster once, at the start of the run. In slug mode, the driver reads it again after each `new-work` slice that ran a stage, when slices are still left. A read-only agent (`roster:<slice>` in the journal) runs `wf_context { "op": "status", "slug": "<slug>" }` (CLI: `wf.mjs status <root> <slug> --json`) and returns the `roster` status and the `dependsOn` of each slice. The driver then orders the slices that are left again. So a person or a campaign can change the roster while a slice runs, and the change takes effect at the next slice:
+Orientation reads the roster once, at the start of the run. In slug mode, the driver reads it again after each `new-work` slice that ran a stage, the last one too. A read-only agent (`roster:<slice>` in the journal) runs `wf_context { "op": "status", "slug": "<slug>" }` (CLI: `wf.mjs status <root> <slug> --json`) and returns the `roster` status, the `dependsOn`, `fresh`, `uxImpact`, `carriedAt` and `planAt` of each slice. The same agent reads the open issues of the talk with `wf_read { "slug": "<slug>", "items": [{ "op": "talk read", "as": "driver", "issues": true, "open": true }] }` (CLI: `wf.mjs talk read <root> <slug> --as driver --issues --open --json`). The driver then orders the slices that are left again. So a person or a campaign can change the roster while a slice runs, and the change takes effect at the next slice:
 
 | Change during a slice | What the driver does |
 |---|---|
 | A `depends-on` edge is added or removed (for example with `wf_run { "op": "campaign slice-order" }` (CLI: `campaign.mjs slice-order`)), or the roster order changes | The slices that are left run in the new order. |
 | A slice gets the roster status `skipped` or `dropped` | The driver skips that slice. |
 | A slice leaves the roster (for example with `wf_run { "op": "slice move" }` (CLI: `wf.mjs slice move`)) | The driver skips that slice, as a dropped slice. |
-| A slice is added to the roster | The driver logs the slice once and does not drive it. Orientation did not check its stages or its design gate, so the next `/wf yolo <slug>` drives it. |
+| A slice is added to the roster, and nothing of it exists yet (`fresh`) | The driver drives it in this run, after the slices it depends on, when its `ux-impact` is `none` or the design of the slug is settled. Else the driver logs it once with the reason, and the next `/wf yolo <slug>` drives it. |
+| An issue is carried into a slice that has a plan (`carriedAt` after `planAt`) | The plan of that slice is written again before its implement. |
 | The read fails or returns no slices | The driver keeps the order that it had. |
 
 The run log names each change, for example `roster changed during 'a': 'b' now runs after c; the walk is now c → b`.
@@ -68,11 +69,21 @@ Limits:
 
 - A change made while a slice runs takes effect only when that slice has finished `plan → implement → verify`.
 - After a slice that ran no stage, the driver does not read the roster, because no time has passed.
+- A slice added with stage records is not driven: orientation did not judge them.
 - The `deferral-rechallenge` slices keep their order, because they build nothing.
 - A roster status of `complete` does not take a slice out of the run. Only `skipped` and `dropped` do.
 - Slice mode does not read the roster again. Its route to the next slice uses the roster that orientation read.
 
 The re-read is an agent call, so a resumed run replays its answer and takes the same path.
+
+## Issues during a run
+
+A stage agent that finds an issue outside its own criteria posts it on the talk with `--issue` and does not fix it ([_talk.md](_talk.md), "Issues"). At each slice boundary the driver:
+
+1. Places what is ready. One agent (`place:<slice>`) runs `wf_run { "op": "issue place", "slug": "<slug>", "apply": true, "id": "<id>" }` (CLI: `wf.mjs issue place <root> <slug> <id> --apply`) for each finished investigation, each delivery that a stage refused or ended without, and each issue held for the person. The command chooses the rung in code and applies it ([_issue-placement.md](_issue-placement.md)). When a placement adds or carries a slice, the roster is read again.
+2. Starts the investigation of each new issue (`investigate:<id>`): a read-only agent that writes `05i-issue-<key>.md` ([_issue-investigate.md](_issue-investigate.md)). It runs alongside the next slice. An investigation that leaves facts out runs once more; then the issue goes to the person.
+
+At the end of the walk the driver waits for the investigations that still run and places them, so a slice added for an issue is still driven in this run. An issue held for the person does not stop the run: the other slices are built, and the hand-back lists it among the held issues. The settings are `issues.maxParallel` (3 investigations at once) and `issues.maxPerRun` (12) in `.ai/sdlc-config.json`. Slice mode places no issue: the next slug run does.
 
 # Driver liveness
 
@@ -174,6 +185,7 @@ Workflow({
     slug:          "<slug>",
     slice:         "<slice>",       // slice mode only — omit for slug mode
     models:        { … },           // the `models` block of .ai/sdlc-config.json
+    issues:        { … },           // the `issues` block of .ai/sdlc-config.json, when it has one
     recordsRoot:   "<recordsRoot>",  // from Step 0.4: the folder of the records
     answered:      [ … ],           // a relaunch after questions only — see Questions
     delegate:      true,            // delegate mode only — omit otherwise

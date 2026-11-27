@@ -17,9 +17,9 @@ import { READ_TOOLS, TOOLS, opsOfTool, refusal, registry } from '../lib/ops/regi
 
 const ABOUT = {
   wf_context: 'Where a workflow stands and what to do next. Call it first. Give the /wf words as `argv` (["implement", "demo", "api"]) to route them, or `slug` (and `stage`, `slice`) for the brief of a stage.',
-  wf_read: 'Read records, decisions, findings and messages of one workflow in one call. `items` is a list of reads, each `{ op, ...fields }` or a short form: `{ record, section?, field? }`, `{ decisions: { slice?, kind? } }`, `{ comments: { key } }`, `{ findings: { open? } }`. Each item succeeds or fails alone; they run together.',
+  wf_read: 'Read records, decisions, findings and messages of one workflow in one call. `items` is a list of reads, each `{ op, ...fields }` or a short form: `{ record, section?, field? }`, `{ decisions: { slice?, kind? } }`, `{ comments: { key } }`, `{ findings: { open? } }`, `{ issues: true }` (the open issues of the run, with their placement). Each item succeeds or fails alone; they run together.',
   wf_query: 'Every other read of wf, read-only: help and describe, status reads, profiles, rules, design reads, git facts. A writing operation runs here only with its read flag (`check: true`).',
-  wf_run: 'Write the records of this computer: records, findings, the board, slices, progress, talk and messages, design content, settings. One operation per call. Content goes inline, with no file: `record put` takes `records: { "04-plan-api.md": "<the whole record>" }`, `record edit` takes `text` in place of `from`, `findings add` takes `found: [...]`, `board add` takes `entries` and `board apply` takes `change`.',
+  wf_run: 'Write the records of this computer: records, findings, the board, slices, progress, talk and messages, design content, settings. One operation per call. Content goes inline, with no file: `record put` takes `records: { "04-plan-api.md": "<the whole record>" }`, `record edit` takes `text` in place of `from`, `findings add` takes `found: [...]`, `board add` takes `entries`, `board apply` takes `change`, and `slice add` takes `ac: [...]`.',
   wf_step: 'The steps of a slice: start, done, check, stop, retry, complete. `done_next` records step n and starts step n + 1 in one call. `steps: [{ op, n, title?, sha?, "no-change"? }, ...]` (with `slug` and `slice`, no `op`) runs several in order in one call, and stops at the first that fails.',
   wf_decide: 'Record an answer or a decision of a stage, hold a question for the person, drop, end or tidy decisions. `add_many` with `entries: [{ kind, key, question, answer, by }]` records several in one change. An entry by the person, a steer or an approval goes to wf_person.',
   wf_wait: 'Wait for an answer (decide wait), a message (talk wait), the end of a job (`{ "for": "job", "job": "<id>" }`), or the next event of a run: `{ "for": "run", "slug", "cursor" }` ends at the next journal line, message or job end after the cursor. It returns within its time; `next` is the call to make again, with the cursor, so no event is missed. progress watch reads where a run stands, once.',
@@ -31,6 +31,7 @@ const ABOUT = {
 export const INLINE = {
   'record edit': [['text', 'from', 'md']],
   'findings add': [['found', 'found-json', 'json']],
+  'slice add': [['ac', 'ac-file', 'json']],
   'decide add': [['entries', 'file', 'json']],
   'board add': [['entries', 'file', 'json']],
   'board apply': [['change', 'file', 'json']],
@@ -82,8 +83,9 @@ export function inlineFields(root, op, fields) {
 /** A short item of wf_read as the operation and its fields. */
 function readItem(item) {
   if (item.op) return item;
-  const { record, decisions, comments, findings, ...rest } = item;
+  const { record, decisions, comments, findings, issues, ...rest } = item;
   if (record) return { op: 'record get', name: record, ...rest };
+  if (issues) return { op: 'talk read', as: 'session', issues: true, ...(issues === true ? {} : issues), ...rest };
   if (decisions) return { op: 'decide list', ...(decisions === true ? {} : decisions), ...rest };
   if (comments) {
     const { keys, ...more } = comments === true ? {} : comments;
@@ -539,7 +541,7 @@ function strip(args) {
   const { op, checkout, items, ...fields } = args;
   for (const [k, v] of Object.entries(fields)) if (typeof v === 'number') fields[k] = String(v);
   // Inline content keeps its shape: inlineFields writes it to a file.
-  for (const k of ['records', 'found', 'entries', 'change']) if (args[k] !== undefined) fields[k] = args[k];
+  for (const k of ['records', 'found', 'entries', 'change', 'ac']) if (args[k] !== undefined) fields[k] = args[k];
   return fields;
 }
 

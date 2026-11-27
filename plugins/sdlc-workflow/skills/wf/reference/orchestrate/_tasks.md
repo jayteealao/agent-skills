@@ -51,6 +51,7 @@ How to work:
 - Commit your work in small commits. Each commit message says what changed, in plain words.
 - When git refuses the commit because your program may not write to the .git folder, that is not a block. Leave the change in the working tree, give status "done", list each file that you changed in "files", and write the commit message in "commit-message". The run commits those files.
 - You do not decide that an outcome is met. A separate validator judges it. Do not write that it works: write what you did.
+- An issue outside your unit (a bug in another file, a broken test of other code) is not yours to fix, not even one line. Write it in "found" as a line that starts with "issue:", with what fails, the command that shows it, and the file and line. The lead places it.
 
 Result file:
 { "status": "done" | "blocked", "did": "<what you did>", "left": "<what is not done, or empty>",

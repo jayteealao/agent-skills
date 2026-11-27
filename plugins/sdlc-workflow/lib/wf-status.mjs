@@ -72,6 +72,36 @@ export function costSummary(dir) {
   return aggregateCost(rows);
 }
 
+/**
+ * The slices of the roster, each with its roster status, its depends-on, the status of each
+ * stage record, the verify result and convergence, and what a driver needs to take a slice that
+ * was added during its run: `uxImpact` and `complexity` of the slice record, `fresh` (no stage
+ * record yet), and `carriedAt` / `planAt` (an issue carried into the slice after its plan).
+ */
+export function sliceRows(dir) {
+  const sliceFm = frontmatterOf(dir, '03-slice.md');
+  return (Array.isArray(sliceFm?.slices) ? sliceFm.slices : []).map((s) => {
+    const name = typeof s === 'string' ? s : s?.slug;
+    const row = { slice: name, roster: typeof s === 'string' ? null : s?.status ?? null };
+    // The walk runs a slice after these. A driver reads them again between slices.
+    row.dependsOn = (Array.isArray(s?.['depends-on']) ? s['depends-on'] : []).map(String);
+    const fms = {};
+    for (const [stage, prefix] of SLICE_STAGES) { fms[stage] = frontmatterOf(dir, stageFileOf(dir, prefix, name)); row[stage] = fms[stage]?.status ?? null; }
+    // The verify result and its convergence, so a reader needs no loop over the verify records.
+    const v = frontmatterOf(dir, stageFileOf(dir, '06-verify', name));
+    row.result = v?.result ?? null;
+    row.convergence = v?.convergence ?? null;
+    const rec = frontmatterOf(dir, `03-slice-${name}.md`);
+    row.uxImpact = rec?.['ux-impact'] ?? null;
+    row.complexity = (typeof s === 'string' ? null : s?.complexity) ?? rec?.complexity ?? null;
+    row.fresh = SLICE_STAGES.every(([stage]) => !fms[stage]) && !v;
+    row.carriedAt = rec?.['carried-at'] ?? null;
+    row.planAt = fms.plan?.['updated-at'] ?? null;
+    if (rec?.['made-for']) row.madeFor = rec['made-for'];
+    return row;
+  });
+}
+
 export async function statusOf(root, slug = null, now = Date.now()) {
   const workflows = await scanWorkflowIndexes({ projectRoot: root });
   if (!slug) return { workflows: workflows.map((w) => summaryOf(w, now)) };
@@ -90,19 +120,7 @@ export async function statusOf(root, slug = null, now = Date.now()) {
     const status = !fm ? null : at === files.length - 1 ? fm.status ?? null : 'in-progress';
     return { stage, file: at < 0 ? files[0] ?? null : files[at], files, present: !!fm, status, updatedAt: fm?.['updated-at'] ?? null };
   });
-  const sliceFm = frontmatterOf(dir, '03-slice.md');
-  const slices = (Array.isArray(sliceFm?.slices) ? sliceFm.slices : []).map((s) => {
-    const name = typeof s === 'string' ? s : s?.slug;
-    const row = { slice: name, roster: typeof s === 'string' ? null : s?.status ?? null };
-    // The walk runs a slice after these. A driver reads them again between slices.
-    row.dependsOn = (Array.isArray(s?.['depends-on']) ? s['depends-on'] : []).map(String);
-    for (const [stage, prefix] of SLICE_STAGES) row[stage] = frontmatterOf(dir, stageFileOf(dir, prefix, name))?.status ?? null;
-    // The verify result and its convergence, so a reader needs no loop over the verify records.
-    const v = frontmatterOf(dir, stageFileOf(dir, '06-verify', name));
-    row.result = v?.result ?? null;
-    row.convergence = v?.convergence ?? null;
-    return row;
-  });
+  const slices = sliceRows(dir);
   const current = small ? '01-small.md' : OLD_STAGE_FILE[summary.stage] ?? stages.find((x) => x.stage === summary.stage)?.file;
   const currentFm = current ? frontmatterOf(dir, current) : null;
   const out = {

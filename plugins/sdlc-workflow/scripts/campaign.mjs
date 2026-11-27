@@ -63,6 +63,8 @@ import { lastRunEndAt } from '../lib/stop-request.mjs';
 import { aggregateCost, readCostRows, rebookedEntries } from '../lib/cost-ledger.mjs';
 import { agentFix, failureOf, fixLines, personFix, refuse, withFix } from '../lib/fix.mjs';
 import { appendRecord, writeFileAtomic } from '../lib/atomic-write.mjs';
+import { issuesOf, readTalk } from '../lib/talk.mjs';
+import { issueKeyOf, issueQuestionKey, issueRecordOf } from '../lib/issue-place.mjs';
 
 /** The sub-commands of this script: a fix names only these. */
 export const COMMANDS = Object.freeze(['check', 'write', 'archive', 'status', 'next', 'plan', 'skip', 'unskip', 'ahead', 'digest', 'open', 'land', 'start', 'built', 'reopen', 'done', 'close', 'accept', 'slice-order', 'migrate', 'remove-worktree']);
@@ -348,6 +350,23 @@ export function openSlices(root, slug) {
   const slices = recordFm(wfDir(root, slug), INDEX_NAME)?.slices;
   if (!Array.isArray(slices)) return [];
   return slices.filter((s) => s && ['defined', 'in-progress', 'planned', 'not-started'].includes(String(s.status ?? ''))).map((s) => String(s.slug ?? s.slice ?? ''));
+}
+
+/**
+ * The open issues of the talk of a workflow: { id, text, investigated, held, answered }. A packet
+ * is not built while one is open: its run found work that is not placed yet.
+ */
+export function openIssues(root, slug) {
+  const dir = wfDir(root, slug);
+  let issues = [];
+  try { issues = issuesOf(readTalk(dir), { open: true }); } catch { return []; }
+  let decisions = [];
+  try { decisions = decisionsOf(dir); } catch { decisions = []; }
+  return issues.map((i) => {
+    const key = issueKeyOf(i.id);
+    const held = /held for the person/.test(String(i.placed?.text ?? ''));
+    return { id: i.id, text: i.text, investigated: hasDoc(dir, issueRecordOf(key)), held, answered: held && Boolean(answeredBy(decisions, issueQuestionKey(key))) };
+  });
 }
 
 // A try-out counts for the build that the person tried: one that is older than the last run of the driver tried older code.
@@ -1115,6 +1134,10 @@ function builtCmd(root, src, [key], f = {}) {
     const why = lastLine.event !== 'run-end' ? 'the last run of its driver has not ended' : `the last run of its driver stopped at ${lastLine.stoppedAt}`;
     return { ok: false, error: `${packet.key} is not built: ${why}`, fix: agentFix(`Run the driver of ${packet['packet-slug']} again and mark the packet built after a run that ends clean.`) };
   }
+  const issues = openIssues(root, packet['packet-slug']);
+  if (issues.length) {
+    return { ok: false, error: `${packet.key} is not built: its run left ${issues.length} open issue(s) (${issues.map((i) => i.id).join(', ')})`, fix: nextFix(root, src, `The run of ${packet['packet-slug']} left open issues. Run next: its place-issue step places them.`) };
+  }
   setPacketState(packet, 'built');
   // The flat shape: the end branch marks the built work, so a packet that starts while this one
   // waits reviews from it. done moves it again.
@@ -1524,6 +1547,20 @@ function nextCmd(root, src, f = {}) {
   if (cur && cur.state === 'open' && step.step === 'yolo') {
     const last = lastJournalLine(root, cur['packet-slug']);
     if (last?.event === 'run-end' && !last.stoppedAt && !openSlices(root, cur['packet-slug']).length) {
+      // The run ended with issues that are not placed: they are placed before the packet is built.
+      const issues = openIssues(root, cur['packet-slug']);
+      if (issues.length) {
+        const slugOf = cur['packet-slug'];
+        const waiting = issues.filter((i) => i.held && !i.answered);
+        const toPlace = issues.filter((i) => i.investigated && !(i.held && !i.answered));
+        const fresh = issues.filter((i) => !i.investigated);
+        return out({
+          action: 'place-issue', ...pk(cur), why: `the run of ${slugOf} left ${issues.length} open issue(s): they are placed before the packet is built`,
+          issues, commands: toPlace.map((i) => wfLine(root, 'issue place', slugOf, i.id, '--apply', '--final', '--as session')),
+          ...(fresh.length ? { relaunch: { args: { slug: slugOf }, issues: fresh.map((i) => i.id) } } : {}),
+          ...(waiting.length ? { ask: waiting.map((i) => ({ kind: 'issue', ...pk(cur), issue: i.id, key: issueQuestionKey(issueKeyOf(i.id)), text: i.text })) } : {}),
+        });
+      }
       if (!onWalkBranch(root, src, cur)) return land(cur, 'built marks the end branch at HEAD of the walk branch');
       return out({ action: 'built', ...pk(cur), why: `the run of ${cur['packet-slug']} reached its endpoint`, command: campaignLine(root, 'built', src, cur.key) });
     }

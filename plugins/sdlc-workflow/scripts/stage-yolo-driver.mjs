@@ -70,6 +70,15 @@ export function stagedText(sourceText) {
   return sourceText.replace(/^const WF_OPS = null(\r?\n)/m, (_, nl) => `const WF_OPS = ${JSON.stringify(opsTable())}${nl}`);
 }
 
+/** The `issues` block of the config: how many issues a run investigates at once and in all. */
+export function issuesOf(cfg) {
+  const b = cfg && typeof cfg.issues === 'object' && cfg.issues ? cfg.issues : null;
+  if (!b) return null;
+  const n = (v) => (Number.isInteger(v) && v > 0 ? v : undefined);
+  const out = Object.fromEntries(Object.entries({ maxParallel: n(b.maxParallel), maxPerRun: n(b.maxPerRun) }).filter(([, v]) => v));
+  return Object.keys(out).length ? out : null;
+}
+
 function sha256(buf) {
   return createHash('sha256').update(buf).digest('hex');
 }
@@ -89,7 +98,7 @@ function pluginVersion() {
  * @param {{ source?: string, version?: string, log?: (line: string) => void }} [opts]
  *   test seams: `source` overrides the driver file, `version` the stamp,
  *   `log` receives the CAUTION line (default: console.error).
- * @returns {{ scriptPath: string, version: string|null, sha256: string, overwroteHotPatch: boolean, models: object, recordsRoot: string }}
+ * @returns {{ scriptPath: string, version: string|null, sha256: string, overwroteHotPatch: boolean, models: object, recordsRoot: string, issues?: object }}
  */
 export function stageYoloDriver(projectRoot, opts = {}) {
   if (typeof projectRoot !== 'string' || !path.isAbsolute(projectRoot)) {
@@ -140,9 +149,14 @@ export function stageYoloDriver(projectRoot, opts = {}) {
 
   // The session passes `models` on as `args.models`, so each stage runs on the model of the config.
   let models = {};
-  try { models = modelsOf(JSON.parse(readFileSync(path.join(projectRoot, '.ai', 'sdlc-config.json'), 'utf8'))); } catch { /* no config: every stage on Opus */ }
+  let issues = null;
+  try {
+    const cfg = JSON.parse(readFileSync(path.join(projectRoot, '.ai', 'sdlc-config.json'), 'utf8'));
+    models = modelsOf(cfg);
+    issues = issuesOf(cfg);
+  } catch { /* no config: every stage on Opus, the default issue limits */ }
   // The session passes `recordsRoot` on too: a linked project keeps its records in the records home.
-  const staged = { scriptPath, version, sha256: digest, overwroteHotPatch, models, recordsRoot: workflowsRoot(projectRoot) };
+  const staged = { scriptPath, version, sha256: digest, overwroteHotPatch, models, recordsRoot: workflowsRoot(projectRoot), ...(issues ? { issues } : {}) };
   // The launch asks how the run settles the decisions of the person; the answer sets `delegate`.
   if (opts.slug) staged.delegate = runDelegatedIn(workflowDir(projectRoot, opts.slug));
   return staged;

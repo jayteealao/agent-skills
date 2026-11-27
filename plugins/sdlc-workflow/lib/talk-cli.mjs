@@ -10,7 +10,7 @@ import { runRoot, workflowsRoot } from './records-root.mjs';
 import { readProgress } from './progress.mjs';
 import { hostname } from 'node:os';
 import {
-  LEASE_MS, WAIT_CALL_MS, actorOf, checkActor, claim, close, inboxOf, markRead, messageLine, messagesOf, ping, post, readTalk,
+  LEASE_MS, WAIT_CALL_MS, actorOf, checkActor, claim, close, inboxOf, issuesOf, markRead, messageLine, messagesOf, ping, post, readTalk,
   markSeen, release, resourceLine, resourcesOf, threadsOf, waitTalk,
 } from './talk.mjs';
 
@@ -81,13 +81,26 @@ export function runTalk(pos, opt, { out, journal = () => {}, command = [] } = {}
       const r = post(dir, {
         by: actorArg(opt, `talk ${verb}`), to: opt.to, re: verb === 'reply' ? arg : opt.re, kind: opt.kind, text: opt.text,
         refs: opt.refs, wantsReply: Boolean(opt['wants-reply']), fallback: opt.fallback, key: opt.key, run: opt.run,
+        issue: verb === 'post' && Boolean(opt.issue),
       }, { statusOf: statusFn(dir) });
-      out(opt.json ? r : `${r.again ? 'posted before: ' : ''}${messageLine(r.entry)}${r.entry.wants ? `\nWait for the reply with: talk wait --as ${r.entry.by}. With no reply by ${hhmm(r.entry.wants.fallbackAt)}, the wait tells you to take your fallback.` : ''}`);
+      out(opt.json ? r : `${r.again ? 'posted before: ' : ''}${r.joined ? `the same issue is open as ${r.joined}; your report joined its thread: ` : ''}${messageLine(r.entry)}${r.entry.wants ? `\nWait for the reply with: talk wait --as ${r.entry.by}. With no reply by ${hhmm(r.entry.wants.fallbackAt)}, the wait tells you to take your fallback.` : ''}`);
       return 0;
     }
     case 'read': {
       const actor = actorArg(opt, 'talk read');
       const events = readTalk(dir);
+      // --issues: the issues of the run, for the placer (driver or lead) and the session. No receipt.
+      if (opt.issues) {
+        const issues = issuesOf(events, { open: Boolean(opt.open) || !opt.all });
+        if (opt.json) { out({ actor, issues, cursor: cursorOf(events) }); return 0; }
+        const lineOf = (i) => [
+          `${i.id} ${String(i.at).slice(11, 16)} ${i.by}${i.reports > 1 ? ` (${i.reports} reports)` : ''}${i.closed ? ' [closed]' : i.placed ? ' [placed]' : ''}: ${i.text}${i.refs.length ? ` {${i.refs.join(', ')}}` : ''}`,
+          ...(i.placed ? [`  ${i.placed.text}`] : []),
+          ...i.refused.map((x) => `  ${x.by} ${x.text}`),
+        ].join('\n');
+        out(issues.length ? issues.map(lineOf).join('\n') : 'no open issues');
+        return 0;
+      }
       // With no cursor: what you have not seen. --open: every open message for you, for the start of a stage.
       const rows = inboxOf(events, actor, { after: opt.after, thread: opt.thread, all: Boolean(opt.all), unread: !opt.after && !opt.thread && !opt.all && !opt.open });
       if (!opt.peek && rows.length) markRead(dir, actor, rows.map((m) => m.id));

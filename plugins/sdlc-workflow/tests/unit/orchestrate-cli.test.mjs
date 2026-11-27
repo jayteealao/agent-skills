@@ -323,3 +323,19 @@ test('an action word is accepted before the root or after the slug', () => {
     assert.equal(ok(run(['contract', root, S, 'get'])).contract.status, 'approved');
   } finally { rmSync(root, { recursive: true, force: true }); }
 });
+
+test('an issue that a builder found goes on the talk, and a unit for it waits for its placement', async () => {
+  const root = makeRoot();
+  try {
+    approved(root, [measure('OUT-A-001')], ['--one-unit', 'yes', '--reason', 'one file']);
+    const b = unit(root, { role: 'builder', title: 'do it', serves: ['OUT-A-001'], files: ['a.js'] }, { ...built, found: ['issue: the parser of b.js drops a field (npm test -- b)', 'a plain note'] });
+    assert.deepEqual(ok(b.r).issues, ['T-1']);
+    const { issuesOf, readTalk } = await import('../../lib/talk.mjs');
+    const [issue] = issuesOf(readTalk(path.join(root, '.ai', 'workflows', S)));
+    assert.deepEqual([issue.by, issue.to, issue.text], ['builder:1', ['session'], 'the parser of b.js drops a field (npm test -- b)']);
+    refused(o(root, 'unit', file(root, 'u.json', { role: 'builder', title: 'fix b', serves: ['OUT-A-001'], files: ['b.js'], issue: 'T-1' })), /T-1, which is not placed/);
+    const { writeDoc } = await import('../../lib/records.mjs');
+    writeDoc(path.join(root, '.ai', 'workflows', S), '05i-issue-t1.md', { frontmatter: { type: 'issue-investigation', issue: 'T-1', placement: { status: 'placed', rung: 5, target: 'fix-b' } }, body: '# Investigation\n' });
+    assert.equal(ok(o(root, 'unit', file(root, 'u.json', { role: 'builder', title: 'fix b', serves: ['OUT-A-001'], files: ['b.js'], issue: 'T-1' }))).unit, 2);
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});

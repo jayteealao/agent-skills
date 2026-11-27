@@ -31,6 +31,14 @@ The log is part of the record. The session and the person read all of it with `<
 
 `--to` takes a slice, `<stage>:<slice>`, `driver`, `session` or `all`. A slice that has not started reads the message when it starts. A slice that is complete reads nothing: the command refuses the post.
 
+## Issues
+
+An issue outside the acceptance criteria of your own stage is not yours to fix, not even one line. Post it once and go on with your work:
+
+`<wf> talk post "<projectRoot>" <slug> --as <you> --issue --text "<what fails, and the command that shows it>" --refs <file:line,commit>`
+
+The post goes to the driver. A post with the same refs joins the open thread of the issue. Do not name a slice for it and do not edit the roster: the driver investigates the issue and places it ([_issue-placement.md](_issue-placement.md)). When the driver gives an issue to your stage, take it in and close the thread when it is handled. When you cannot take it, reply `cannot: <why>` in the thread. `<wf> talk read "<projectRoot>" <slug> --as driver --issues` lists the open issues.
+
 ## Long commands
 
 A command that can take longer than 8 minutes is a job. A job is its own process with its output in a log file of this machine.

@@ -229,6 +229,15 @@
         }
       }
     },
+    "issues": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "The issues that the agents of a yolo run post on the talk: the driver investigates and places them between slices (skills/wf/reference/_issue-placement.md).",
+      "properties": {
+        "maxParallel": { "type": "integer", "minimum": 1, "description": "The investigations that run at once. Default 3." },
+        "maxPerRun": { "type": "integer", "minimum": 1, "description": "The issues that one run investigates. The next run takes the rest. Default 12." }
+      }
+    },
     "resources": {
       "type": "array",
       "description": "The shared resources of the project that one agent uses at a time: a test machine, a device, a port, a build folder. A stage holds the key (wf.mjs talk wait --claim) before it uses the resource.",

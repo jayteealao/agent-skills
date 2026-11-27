@@ -133,7 +133,9 @@ export function rootOf(posts, id) {
  * Post a message, or a reply when `re` names one.
  *
  * @param {string} dir the folder of the workflow
- * @param {object} m `{ by, to, re, kind, text, refs, wantsReply, fallback, key, run }`
+ * @param {object} m `{ by, to, re, kind, text, refs, wantsReply, fallback, key, run, issue }`. With `issue` the
+ *   post is an issue for the placer of the run: it goes to `driver` when `to` is empty, and an open
+ *   issue with the same refs takes it as a reply in its thread, so one issue keeps one thread.
  * @param {object} [o]
  * @param {(slice: string) => string | null} [o.statusOf] the status of a slice of the roster
  * @returns {{ entry: object, again: boolean }} `again`: the key was posted before, and nothing was written
@@ -142,12 +144,13 @@ export function post(dir, m, { now = Date.now(), statusOf = () => null, pingMs =
   const by = checkActor(m.by, 'talk post');
   const text = String(m.text ?? '').trim();
   if (!text) throw redo('talk post: --text is required', 'Run the command again with --text, the message in one or two plain sentences.');
-  const kind = m.kind ?? (m.wantsReply ? 'request' : 'info');
+  const kind = m.kind ?? (m.wantsReply || m.issue ? 'request' : 'info');
   if (!KINDS.includes(kind)) throw redo(`talk post: --kind must be one of ${KINDS.join(', ')}`, 'Run the command again with one of those kinds.');
   if (m.wantsReply && !String(m.fallback ?? '').trim()) {
     throw redo('talk post: a message that wants a reply needs --fallback', 'Run the command again with --fallback, what you do when no reply comes in time. Nobody waits without an end.');
   }
   let again = false;
+  let joined = null;
   const [entry] = append(dir, (events) => {
     const posts = messagesOf(events);
     if (m.key) {
@@ -155,6 +158,12 @@ export function post(dir, m, { now = Date.now(), statusOf = () => null, pingMs =
       if (old) { again = true; return []; }
     }
     let to = list(m.to);
+    let re = m.re ?? null;
+    if (m.issue && !re && list(m.refs).length) {
+      const same = [...posts.values()].find((p) => p.issue && !p.re && !p.closed && sameRefs(p.refs, list(m.refs)));
+      if (same) { re = same.id; joined = same.id; if (!to.length) to = same.to; }
+    }
+    if (m.issue && !to.length) to = ['driver'];
     if (m.re) {
       const parent = posts.get(m.re);
       if (!parent) throw redo(`talk reply: no message ${m.re}`, 'Run talk read to see the ids of the messages for you, then reply to one of them.');
@@ -170,7 +179,7 @@ export function post(dir, m, { now = Date.now(), statusOf = () => null, pingMs =
       }
     }
     return [{
-      ev: 'post', by, to, ...(m.re ? { re: m.re } : {}), kind, text,
+      ev: 'post', by, to, ...(re ? { re } : {}), kind, text, ...(m.issue && !joined ? { issue: true } : {}),
       ...(list(m.refs).length ? { refs: list(m.refs) } : {}),
       ...(m.wantsReply ? { wants: { fallback: String(m.fallback).trim(), pingAt: iso(now + pingMs), fallbackAt: iso(now + fallbackMs) } } : {}),
       ...(m.key ? { key: String(m.key) } : {}), ...(m.run ? { run: String(m.run) } : {}),
@@ -180,7 +189,32 @@ export function post(dir, m, { now = Date.now(), statusOf = () => null, pingMs =
     const old = [...messagesOf(readTalk(dir)).values()].find((p) => p.key === m.key && p.by === by);
     return { entry: old, again: true };
   }
-  return { entry, again: false };
+  return { entry, again: false, ...(joined ? { joined } : {}) };
+}
+
+const sameRefs = (a, b) => { const x = [...new Set(a ?? [])].sort(); const y = [...new Set(b ?? [])].sort(); return x.length > 0 && x.join('|') === y.join('|'); };
+
+/**
+ * The issues of the run: each root post with `issue: true`, with its replies, and its state.
+ * `placedBy` is the last placement note of the thread (a reply of the placer whose text starts with
+ * `placed:`), and `refused` the replies whose text starts with `cannot:`.
+ */
+export function issuesOf(events, { open = false } = {}) {
+  const posts = messagesOf(events);
+  const out = [];
+  for (const m of posts.values()) {
+    if (!m.issue || m.re) continue;
+    if (open && m.closed) continue;
+    const replies = m.replies.map((id) => posts.get(id)).filter(Boolean);
+    const placed = replies.filter((r) => /^placed:/i.test(String(r.text))).at(-1) ?? null;
+    out.push({
+      id: m.id, at: m.at, by: m.by, to: m.to, text: m.text, refs: m.refs ?? [], closed: m.closed,
+      reports: 1 + replies.filter((r) => r.by !== 'driver' && r.by !== 'session' && !/^(placed|cannot):/i.test(String(r.text))).length,
+      placed: placed ? { id: placed.id, at: placed.at, text: placed.text } : null,
+      refused: replies.filter((r) => /^cannot:/i.test(String(r.text)) && (!placed || num(r.id) > num(placed.id))).map((r) => ({ id: r.id, by: r.by, text: r.text })),
+    });
+  }
+  return out;
 }
 
 /**
@@ -442,7 +476,7 @@ export function watchEventsOf(slug, events, seen = 0) {
 
 /** One line of a message, for a list. */
 export function messageLine(m, { full = false } = {}) {
-  const flags = [m.kind !== 'info' ? m.kind : null, m.wants ? 'wants a reply' : null, m.closed ? 'closed' : null, m.pings?.length ? 'pinged' : null].filter(Boolean);
+  const flags = [m.issue ? 'issue' : null, m.kind !== 'info' ? m.kind : null, m.wants ? 'wants a reply' : null, m.closed ? 'closed' : null, m.pings?.length ? 'pinged' : null].filter(Boolean);
   return `${m.id} ${String(m.at).slice(11, 16)} ${m.by} → ${(m.to ?? []).join(', ')}${m.re ? ` (re ${m.re})` : ''}${flags.length ? ` [${flags.join(', ')}]` : ''}: ${full ? m.text : short(m.text)}${m.refs?.length ? ` {${m.refs.join(', ')}}` : ''}`;
 }
 
