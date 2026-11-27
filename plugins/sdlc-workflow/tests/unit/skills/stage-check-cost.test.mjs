@@ -23,6 +23,8 @@ test('a step runs a static check and no test; the slice runs its checks once, wi
   assert.doesNotMatch(card, /Red before green/);
   assert.match(steps, /After each plan step, run only the quick checks of the project on the files of that step: format, lint and type check/);
   assert.match(steps, /moves it to the slice checks, where it runs once over every file the steps changed; it is never dropped/);
+  for (const text of [steps, ref('plan.md')]) assert.match(text, /The check of a probe step is quick: one narrow test or filter on the files of the step, within the slice-check budget of the test profile/);
+  assert.match(ref('plan.md'), /or when the later steps build on the step and a fault in it would cost them their work/);
   assert.match(steps, /## The slice checks/);
   assert.match(steps, /The limit is 3 rounds for the slice, counted over all its reds together/);
   assert.match(ref('plan.md'), /A slice has no more steps than the step limit of the project \(`slices\.maxSteps`/);
