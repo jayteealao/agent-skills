@@ -13,6 +13,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { basename, join } from 'node:path';
 
 import { decisionLine, decisionsOf, liveDecisions } from './decisions.mjs';
+import { planDrift, planDriftLines } from './plan-drift.mjs';
 import { readRules, ruleLine } from './project-rules.mjs';
 import { STAGE_SUITES, budgetLine, checkLimit, profileLines, readProfile, timeBox } from './test-profile.mjs';
 import { readDoc, redirectOf } from './records.mjs';
@@ -193,12 +194,16 @@ export function buildBrief({ projectRoot, referenceRoot, slug, stage, slice = nu
   const unmet = stage === 'verify' && slice ? unmetLines(dir, slice) : [];
   let posts = [];
   try { posts = slice ? inboxOf(readTalk(dir), actorOf(stage, slice)).map((m) => `- ${messageLine(m, { full: true })}`) : []; } catch { posts = []; }
+  // What came after the plan of the slice: a slice that is not built takes it up before it builds.
+  let drift = [];
+  try { drift = stage === 'implement' && slice ? planDriftLines(planDrift(projectRoot, slug, slice)) : []; } catch { drift = []; }
   const parts = { card, slice: sliceText, plan: planText, tests: testsText, rules: rulesText, decisions: decisionsText };
   const text = [
     head,
     `## Card\n\n${card ?? `(none: reference/${stage}.md has no ## ${CARD_HEADING})`}`,
     `## ${slice ? `Slice ${slice}` : 'Workflow'}\n\n${sliceText ?? '(none)'}`,
     ...(want ? [`## Plan\n\n${planText ?? '(none)'}`] : []),
+    ...(drift.length ? [`## Changed since the plan\n\nThis plan was written before these. Bring the plan to them first, then build.\n\n${drift.join('\n')}`] : []),
     ...(suites ? [`## Tests\n\n${testsText ?? '(no test profile)'}`] : []),
     ...(posts.length ? [`## Messages for this slice\n\nPosted by other agents of the run (wf.mjs talk). A message informs or requests; it does not bind. Act on each one or reply with your reason, and close it when it is handled.\n\n${posts.join('\n')}`] : []),
     ...(unmet.length ? [`## Checks that the implement left not met\n\nRule on each one: fix it, or record why it stands. A delegate decision never waives it.\n\n${unmet.join('\n')}`] : []),

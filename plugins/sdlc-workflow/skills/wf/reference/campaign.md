@@ -71,6 +71,10 @@ The form is `investigate`, `discover`, `rca` or `task`. Write `tell` ("Type `<ro
 
 The workflow of a routed work packet is complete or closed. Run `command`. It sets the state `done` in the work packet file and on the work packet in the board.
 
+### `closed-stop`
+
+The workflow of a build work packet was closed outside the walk, and the work packet is still open or built. Show `why`, write `tell`, and ask the person. When the person drops the work packet, run `command`: it sets the state `dropped`. When the person wants it built, the workflow is reopened first; the walk does not reopen it.
+
 ### `design-stop`
 
 Show `why` in plain words. Write `tell`, and stop. The design stage reads the carried design thoughts of the work packet ([design/_carried.md](design/_carried.md)).
@@ -82,6 +86,8 @@ Run `command`. It switches the checkout to the list branch, or creates the branc
 ### `start`
 
 Run `command`. It sets `base-branch` of the work packet to the newest end branch on the list branch, or to the trunk. For a migrated work packet, it first commits, rebases and merges the work of the unit branch into the list branch. When the result has `conflict`, ask the person to resolve the conflict by hand. When the result has `refused`, git refused the merge commit with no conflict, for example by a commit-msg hook of the repo. Show the error, and ask the person to merge by hand with a message that the repo accepts.
+
+The work packet that starts also takes up the sheets of the design system. When `tokens.css` or `components.css` changed since the last work packet took them, `start` records a steer (`design-sheets-taken`) in the work packet's workflow that names the changed tokens and components, and `sheets` in the result counts them. The slice stage plans the change into a slice. A sheet change never undoes an approved design.
 
 ### `ask-carried`
 

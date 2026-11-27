@@ -61,6 +61,7 @@ import { linkedProject, realPathOf, recordsRel, workflowDir, workflowRel, workfl
 import { commitRecords } from '../lib/records-sync.mjs';
 import { INDEX_HEADER, INDEX_NAME, META_FILE, hasDoc, readDoc, setFields as setRecordFields, writeDoc } from '../lib/records.mjs';
 import { closeWorkflow } from '../lib/closing.mjs';
+import { sheetChanges, takeSheets, takeUpText } from '../lib/design-taken.mjs';
 import { baseCheck, defaultRun, prShapeOf, readShipPlan } from '../lib/last-mile.mjs';
 import { STALE_FLOOR_MS, parseJsonLines } from '../lib/live-events.mjs';
 import { readLedger, verdictOf } from '../lib/findings.mjs';
@@ -391,6 +392,9 @@ function nextStep(root, src, packet) {
   if (packet.state === 'done' || packet.state === 'dropped') return { step: 'none' };
   if (!BUILD_FORMS.includes(packet.form)) return { step: 'route', route: routeOf(src, packet) };
   if (packet.state === 'written') return { step: 'open' };
+  // A workflow closed outside the walk (wf.mjs close) ends nothing on the list by itself: the person says what the packet becomes.
+  const index = recordFm(wfDir(root, slug), INDEX_NAME);
+  if (index?.status === 'closed') return { step: 'closed', reason: index['close-reason'] ?? null };
   const block = designBlock(root, slug);
   if (block) return { step: 'design', reason: block, route: `/wf design ${slug}` };
   if (packet.state === 'open') {
@@ -1309,7 +1313,23 @@ function startCmd(root, src, [key], f) {
   const wdir = wfDir(root, packet['packet-slug']);
   if (!hasDoc(wdir, INDEX_NAME)) return { ok: false, error: `${posix(relative(root, join(wdir, INDEX_NAME)))} does not exist: run campaign.mjs open`, fix: personFix(`The packet ${packet.key} is open, and its workflow folder has no index: the person restores ${posix(relative(root, join(wdir, INDEX_NAME)))} from git, or says to drop the packet.`) };
   setRecordFields(wdir, INDEX_NAME, { 'base-branch': base, branch: listBranch(src), 'updated-at': nowIso() });
-  return { ok: true, key: packet.key, slug: packet['packet-slug'], base, ...(migration ? { migration } : {}) };
+  const sheets = takeUp(root, packet['packet-slug'], wdir);
+  return { ok: true, key: packet.key, slug: packet['packet-slug'], base, ...(migration ? { migration } : {}), ...(sheets ? { sheets } : {}) };
+}
+
+/**
+ * The packet that starts takes up what changed in the sheets of the design system since the last
+ * packet took them: a steer of its workflow names the change, and the sheets are kept as taken.
+ * A change to the sheets does not undo an approved design; the next packet builds it.
+ */
+function takeUp(root, slug, wdir) {
+  let changes;
+  try { changes = sheetChanges(root); } catch { return null; }
+  if (!changes) return null;
+  const text = takeUpText(changes);
+  if (text) addDecision(wdir, { kind: 'steer', key: 'design-sheets-taken', by: 'policy', stage: 'slice', question: 'What changed in the sheets of the design system since the last packet took them up?', answer: text });
+  takeSheets(root, slug);
+  return changes.first ? { taken: 'first' } : { taken: true, tokens: changes.tokens.length, components: changes.components.length, other: changes.other, steer: Boolean(text) };
 }
 
 function builtCmd(root, src, [key], f = {}) {
@@ -1460,9 +1480,9 @@ function doneCmd(root, src, [key], f) {
  * Close the workflow of a packet that is done, so that status, the design board and the next run
  * read it as finished, not as a workflow still at its last stage. True when this call closed it.
  */
-function closeDone(root, slug) {
+function closeDone(root, slug, { reason = 'merged', note = 'Closed by the campaign when the packet was done.' } = {}) {
   if (!slug || !hasDoc(wfDir(root, slug), INDEX_NAME)) return false;
-  const r = closeWorkflow(root, slug, { reason: 'merged', note: 'Closed by the campaign when the packet was done.' });
+  const r = closeWorkflow(root, slug, { reason, note });
   return Boolean(r.ok && r.closed);
 }
 
@@ -1473,6 +1493,7 @@ function closeCmd(root, src, [key, to]) {
   if (to === 'done' && BUILD_FORMS.includes(packet.form)) return { ok: false, error: `${packet.key} is a build packet: it is done through built and done, after its yolo run and its fidelity read`, fix: nextFix(root, src, `${packet.key} is a build packet: run next, which leads it through built and done.`) };
   setPacketState(packet, to);
   if (to === 'done' && packet['packet-slug']) closeDone(root, packet['packet-slug']);
+  if (to === 'dropped' && packet['packet-slug']) closeDone(root, packet['packet-slug'], { reason: 'abandoned', note: 'Closed by the campaign when the person dropped the packet.' });
   const { path: boardPath, board } = boardOf(root, src);
   const onBoard = board?.work?.find((w) => w.key === packet.key);
   if (onBoard) {
@@ -1812,6 +1833,14 @@ function nextCmd(root, src, f = {}) {
     }
     case 'open':
       return out({ action: 'open', ...pk(cur), why: `${cur.key} is written`, command: campaignLine(root, 'open', src, cur.key) });
+    case 'closed': {
+      const slug = cur['packet-slug'];
+      return out({
+        action: 'closed-stop', ...pk(cur), ...ahead, why: `the workflow ${slug} was closed outside the walk${step.reason ? ` (${step.reason})` : ''}, and the packet is still ${cur.state}`,
+        command: campaignLine(root, 'close', src, cur.key, 'dropped'),
+        tell: `The workflow ${slug} is closed, but its packet ${cur.key} is still ${cur.state}. Say whether to drop the packet, or to reopen the workflow and build it.`,
+      });
+    }
     case 'design': {
       const direction = cur['design-form'] === 'design-direction';
       return out({

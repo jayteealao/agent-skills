@@ -1564,3 +1564,27 @@ test('split: slices of an open packet move to a new packet right after it, with 
     assert.equal(runCampaign(['split', root, SRC, 'screen', '--slices', 'x', '--into', 'screen-two']).ok, false, 'a written packet is changed on the board');
   } finally { rmSync(root, { recursive: true, force: true }); }
 });
+
+test('a build packet whose workflow was closed outside the walk stops the walk; a dropped packet closes its workflow', async () => {
+  const { closeWorkflow } = await import('../../lib/closing.mjs');
+  const root = makeRepo();
+  try {
+    const dir = writeBoard(root, [
+      { key: 'engine', title: 'Engine', shape: 'intake', slug: 'demo-engine', entry: 'x', state: 'proposed', order: 1, items: ['d-one'], goal: 'Build the engine.', 'acceptance-criteria': ['The engine runs.'], ...WRITE_UP },
+      { key: 'screen', title: 'Screen', shape: 'intake', slug: 'demo-screen', entry: 'x', state: 'proposed', order: 2, 'why-here': 'it shows the engine', items: ['d-two'], goal: 'Show it.', 'acceptance-criteria': ['It shows.'], ...WRITE_UP },
+    ], ['d-one', 'd-two']);
+    assert.equal(run(['write', dir]).ok, true);
+    assert.equal(run(['open', root, SRC, 'engine']).ok, true);
+    assert.equal(run(['open', root, SRC, 'screen']).ok, true);
+    closeWorkflow(root, 'demo-engine', { reason: 'superseded' });
+    assert.deepEqual([run(['status', root, SRC]).current.step, run(['status', root, SRC]).current.reason], ['closed', 'superseded']);
+    const a = run(['next', root, SRC, '--how-far', 'all', '--since', '2026-01-01T00:00:00Z']);
+    assert.equal(a.action, "closed-stop", JSON.stringify(a).slice(0, 600));
+    assert.match(a.why, /demo-engine was closed outside the walk \(superseded\)/);
+    assert.match(a.command, /close .* engine dropped/);
+    assert.equal(run(['close', root, SRC, 'engine', 'dropped']).state, 'dropped');
+    // Dropping an open packet closes its open workflow as abandoned.
+    assert.equal(run(['close', root, SRC, 'screen', 'dropped']).ok, true);
+    assert.deepEqual([rec(root, 'demo-screen', '00-index.md').status, rec(root, 'demo-screen', '00-index.md')['close-reason']], ['closed', 'abandoned']);
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});
