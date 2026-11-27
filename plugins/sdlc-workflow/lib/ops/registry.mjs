@@ -23,10 +23,10 @@ const ROWS = {
     | profile show | profile timebox | profile hooks | consent check | standing suggest | standing list | standing check
     | rule list | rule candidates | records status | records images | records rewrite list | records rewrite check | records rewrite verify | records parked | records parked show | board digest | page brief | page check | gh status | talk resources | talk jobs
     | design next | design status | design doctor | design list | design tokens | design components | design versions | design approved
-    | design state | design refs check | design capture-path | design server status | design server url | record evidence`,
+    | design state | design refs check | design capture-path | design server status | design server url | record evidence | report list | report show`,
   wf_run: `record put | record draft | record edit | record set | record stage-done | record migrate | findings add | findings set
     | board add | board apply | board set | board prose | board render | board adopt | board move | board regroup | board remove
-    | slice drop | slice move | slice add | slice carry | slice split | slice merge | issue place | progress set | talk post | talk reply | talk close | talk ping | talk claim | talk release | msg post
+    | slice drop | slice move | slice add | slice carry | slice split | slice merge | issue place | report add | report built | progress set | talk post | talk reply | talk close | talk ping | talk claim | talk release | msg post
     | page put | profile set | profile record | profile budget | index
     | design init | design foundation | design component add | design component link | design component remove | design component spec
     | design components scan | design components none | design components verify | design screen add | design screen remove | design screen rename
@@ -39,7 +39,7 @@ const ROWS = {
   wf_act: `records link | records sync | records push | records flush | records close | records retry | records dismiss | records migrate
     | records claim | records release | records decline | records parked take | gh flush | gh backfill | setup | modernize | close | ship ready | ship merge | ship finish
     | control stop | control clear | control show | worktree add | worktree remove | design publish | design server start | design server stop | design server install | design server uninstall`,
-  wf_person: 'records join | records take | records parked drop | records rewrite backup | records rewrite export | records rewrite mirror | consent grant | consent revoke | rule add | rule end | rule adopt | standing set | standing clear | standing decline | design approve | design waive',
+  wf_person: 'report decide | records join | records take | records parked drop | records rewrite backup | records rewrite export | records rewrite mirror | consent grant | consent revoke | rule add | rule end | rule adopt | standing set | standing clear | standing decline | design approve | design waive',
 };
 
 // The sibling scripts (lib/ops/forms.mjs SIBLINGS), by the same rule: long runs to wf_job, state

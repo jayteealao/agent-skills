@@ -54,6 +54,7 @@ export function personOnlyCommand(command, { cwd } = {}) {
     if (what) return what;
   }
   if (/\brule\s+(add|adopt|end)\b/.test(c)) return 'change a rule of the project';
+  if (/\breport\s+decide\b/.test(c)) return 'decide what to build';
   if (/\bstanding\s+set\b/.test(c)) return 'set a standing answer';
   if (/\bconsent\s+grant\b/.test(c)) return 'grant consent';
   if (/\bcontract\s+approve\b|\bdigest\b|\bchange\s+(accept|refuse)\b/.test(c) && /\b(campaign|orchestrate)\.mjs\b/.test(c)) return 'record an approval';

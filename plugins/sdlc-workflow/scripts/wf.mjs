@@ -380,6 +380,28 @@
  *             or a target that ended without it, places it one rung higher; an answer of the person
  *             to the held question is applied. --running names the stages that run now
  *             Example: wf.mjs issue place . demo T-12 --apply --running implement:web
+ *   report   add <root> [<slug>] --kind bug|feature|docs|friction --title t --body b [--severity high|medium|low]
+ *                [--area a] [--stage s] [--command c] [--error e] [--json]
+ *             file a report about wf itself, not about the product: a command that fails or
+ *             does what its docs do not say, a feature it lacks, a doc that the code contradicts,
+ *             a step that cost time for no gain. Triaged when it is filed: its area (the op or
+ *             stage it names), its severity, and the earlier report it repeats. Kept on this
+ *             computer in <sdlc home>/reports/; the person decides in the Reports app
+ *             Example: wf.mjs report add . demo --kind bug --title "campaign split refuses after a stop" --body "..."
+ *   report   list [--state new|build|later|reject|built|all] [--json]
+ *             the groups of reports, the highest priority first (new ones when no --state)
+ *             Example: wf.mjs report list --state build
+ *   report   show <id> [--json]
+ *             one group: the report, each sighting of it, the choice of the person
+ *             Example: wf.mjs report show R-20261127-a1b2c3
+ *   report   decide <id> <decision> [--note n] [--json]
+ *             the choice of the person on a group, build, later or reject (the Reports app
+ *             writes the same file);
+ *             an agent of a run is refused
+ *             Example: wf.mjs report decide R-20261127-a1b2c3 build --note "next release"
+ *   report   built <id> --commit <sha> [--release v] [--note n] [--json]
+ *             the commit that built a group the person chose to build
+ *             Example: wf.mjs report built R-20261127-a1b2c3 --commit HEAD
  *   decide   add <root> <slug> --answer a [--key k] [--question q] [--kind k] [--by b] [--class c] [--replaces D-1,D-2]
  *                [--packet p] [--slice s] [--files f,g] [--stage s] [--rewrote f,g] [--source s] [--json]
  *             Example: wf.mjs decide add . demo --key db --question "Which database?" --answer postgres
@@ -773,6 +795,8 @@ import { addSlice, carrySlice, dropSlice, mergeSlices, moveSlice, splitSlice } f
 import { limitsOf } from '../lib/limits.mjs';
 import { placeAndApply } from '../lib/issue-apply.mjs';
 import { placementLine } from '../lib/issue-place.mjs';
+import { DECISIONS as REPORT_DECISIONS, addReport, builtReport, decideReport, groupLine, groups as reportGroups, readAll as readReports, reportsDir } from '../lib/reports.mjs';
+import { callerActor, personOnly } from '../lib/actor.mjs';
 import { BOARD_KINDS, PROSE_KINDS, boardAdd, boardAdopt, boardApply, boardDigest, boardFieldArgs, boardMove, boardProse, boardRegroup, boardRemove, boardRender, boardSet } from '../lib/board-ops.mjs';
 import { appendStep, branchOf, commitIdentity, gitRevParse, lastSlice, planDocOf, planProblems, readPlan, readSteps, sliceRefusal, stepCheckout, whereLine, whereOf } from '../lib/steps.mjs';
 import { hostProcess, isMainModule } from '../lib/proc.mjs';
@@ -2481,6 +2505,60 @@ export function helpText(cmd) {
 
 // A reader that closes the pipe early (`record get ... | head`) is not an error of the command.
 let pipeGuard = false;
+// A report about wf itself: filed by an agent, triaged by the code, decided by the person.
+async function reportCmd(pos, opt) {
+  const [verb, a, b, c] = pos;
+  const verbs = ['add', 'list', 'show', 'decide', 'built'];
+  if (!verbs.includes(verb)) throw usage(`report: one of ${verbs.join(', ')}`);
+  const findGroup = (id) => reportGroups(readReports()).find((g) => g.id === id || g.sightings.some((s) => s.id === id));
+  if (verb === 'add') {
+    if (!a) throw usage('report add: <root> is required (the project the report comes from)');
+    const projectRoot = resolve(a);
+    const { allOps } = await import('../lib/ops/forms.mjs');
+    const areas = [...allOps().keys(), 'intake', 'design', 'slice', 'plan', 'implement', 'verify', 'review', 'ship', 'retro', 'yolo', 'campaign', 'orchestrate', 'probe', 'brainstorm'];
+    const version = JSON.parse(readFileSync(join(PLUGIN_ROOT, 'package.json'), 'utf8')).version;
+    const context = { project: basename(projectRoot), root: projectRoot, ...(b ? { slug: b } : {}), ...(opt.stage ? { stage: String(opt.stage) } : {}), version, by: callerActor() ?? 'session' };
+    let r;
+    try {
+      r = addReport({ kind: opt.kind, title: opt.title, body: opt.body, severity: opt.severity, area: opt.area, command: opt.command, error: opt.error, context }, { areas });
+    } catch (e) { throw refuse(`report add: ${e.message}`, agentFix('Give --kind, a one-line --title and a --body that says what you did, what happened, what you expected, and the workaround you used.')); }
+    const g = r.group;
+    const seen = r.report.triage.duplicateOf ? `a sighting of ${g.id} (seen ${g.count} times)` : 'a new report';
+    const told = g.built ? `; it was built in ${g.built.commit.slice(0, 8)}${g.built.release ? ` (${g.built.release})` : ''}: this wf may be older than that` : g.decision ? `; the person decided ${g.decision.decision}${g.decision.note ? `: ${g.decision.note}` : ''}` : '';
+    out(opt.json ? { id: r.report.id, group: g.id, duplicateOf: r.report.triage.duplicateOf ?? null, triage: r.report.triage, state: g.state, decision: g.decision, built: g.built, next: 'Go on with your work: the person decides on the report later.' }
+      : `${r.report.id}: ${seen}, ${r.report.triage.area}, ${r.report.triage.severity}${told}. Go on with your work.`);
+    return 0;
+  }
+  if (verb === 'list') {
+    const state = String(opt.state ?? 'new');
+    const all = reportGroups(readReports());
+    const list = state === 'all' ? all : all.filter((g) => g.state === state);
+    out(opt.json ? { dir: reportsDir(), groups: list.map(({ report, sightings, ...g }) => ({ ...g, sightings: sightings.map((s) => s.id) })) } : list.length ? list.map(groupLine).join('\n') : `no ${state === 'all' ? '' : `${state} `}reports in ${reportsDir()}`);
+    return 0;
+  }
+  if (!a) throw usage(`report ${verb}: <id> is required`);
+  if (verb === 'show') {
+    const g = findGroup(a);
+    if (!g) throw refuse(`report show: no report ${a}`, agentFix('List the reports with report list --state all.'));
+    out(opt.json ? g : [groupLine(g), '', g.report.body, ...(g.report.command ? ['', `command: ${g.report.command}`] : []), ...(g.report.error ? [`error: ${g.report.error}`] : []), ...g.sightings.map((s) => `\n${s.id} ${s.at} ${s.context?.project ?? ''}: ${s.title}\n${s.body}`), ...(g.decision ? ['', `decided ${g.decision.decision} ${g.decision.at}${g.decision.note ? `: ${g.decision.note}` : ''}`] : [])].join('\n'));
+    return 0;
+  }
+  if (verb === 'decide') {
+    personOnly('decide what to build');
+    if (!REPORT_DECISIONS.includes(b)) throw usage(`report decide: <id> ${REPORT_DECISIONS.join('|')}`);
+    let d;
+    try { d = decideReport(a, b, { note: opt.note }); } catch (e) { throw refuse(`report decide: ${e.message}`, agentFix('List the reports with report list --state all.')); }
+    out(opt.json ? d : `${d.id}: ${d.decision}${d.note ? ` (${d.note})` : ''}`);
+    return 0;
+  }
+  let sha = opt.commit;
+  if (sha === 'HEAD' || sha === true) sha = spawnSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8', windowsHide: true }).stdout?.trim() || null;
+  let d;
+  try { d = builtReport(a, { commit: sha, release: opt.release, note: opt.note }); } catch (e) { throw refuse(`report built: ${e.message}`, agentFix('Name the commit that built it with --commit <sha>.')); }
+  out(opt.json ? d : `${d.id}: built in ${d.commit.slice(0, 8)}`);
+  return 0;
+}
+
 function guardPipe() {
   if (pipeGuard) return;
   pipeGuard = true;
@@ -2823,6 +2901,7 @@ async function runMain(cmd, pos, opt) {
         out(opt.json ? { pass, runs, receipt: pass ? file : null, dirty } : pass ? `receipt ${file}: ${runs.map((r) => r.suite).join(', ')} passed at ${receipt.sha.slice(0, 8)}${named}` : [`no receipt: ${failed?.suite} failed`, ...(failed ? suiteLogLines(failed) : [])].join('\n'));
         return pass ? 0 : 1;
       }
+      case 'report': return await reportCmd(pos, opt);
       case 'issue': {
         const [verb, root, slug, id] = pos;
         if (verb !== 'place' || !root || !slug || !id) throw usage('issue: place <root> <slug> <id> are required');

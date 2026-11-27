@@ -87,6 +87,7 @@ function normal(text, places) {
     .replace(/\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d(\.\d+)?Z/g, '<time>').replace(/\d{8}T\d{6}Z/g, '<stamp>').replace(/\b\d{4}-\d\d-\d\d\b/g, '<date>').replace(/\b[0-2]\d:[0-5]\d\b/g, '<hour>')
     .replace(/\b[0-9a-f]{40}\b/g, '<sha>').replace(/\b(?=[0-9a-f]*\d)(?=[0-9a-f]*[a-f])[0-9a-f]{7,12}\b/g, '<sha>')
     .replace(/\bJ-<stamp>-[a-z0-9]+/g, '<job>').replace(/\bpid \d+/g, 'pid <n>').replace(/"pid": \d+/g, '"pid": <n>').replace(/"quietMinutes": \d+/g, '"quietMinutes": <n>')
+    .replace(/\bR-\d{8}-[0-9a-f]{6}\b/g, 'R-<id>')
     .replace(/\b\d+(\.\d+)? ?(ms|s|min)\b/g, '<n> $2').replace(/\\/g, '/');
 }
 
