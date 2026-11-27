@@ -19,7 +19,7 @@
 // It is off by default: `records.sync: compose` in ~/.sdlc/config.json turns it on.
 import { spawnSync } from 'node:child_process';
 import { randomBytes } from 'node:crypto';
-import { existsSync, readFileSync, rmSync, statSync } from 'node:fs';
+import { copyFileSync, existsSync, readFileSync, renameSync, rmSync, statSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 
 import { writeFileAtomic } from './atomic-write.mjs';
@@ -32,6 +32,20 @@ export const SYNCED_REF = 'refs/wf/synced';
 export const LOCAL_REF = 'refs/wf/local';
 export const PARK_PREFIX = 'refs/heads/conflict/';
 export const MAX_TRIES = 8;
+// The private index of the last snapshot, with the stat data of every file (in .git).
+export const SNAPSHOT_CACHE = 'wf-snapshot-index';
+// The snapshot of a clone with no cache reads every file once: on a clone of some GB, minutes.
+const ADD_TIMEOUT_MS = 15 * 60_000;
+
+/**
+ * Why a git call failed, in one line: a timeout says so, and the warnings that git writes before
+ * its error (a line-end warning of `add`) are not the error.
+ */
+export function gitFailure(r, timeoutMs) {
+  if (r.status === null) return `stopped after ${Math.round(timeoutMs / 1000)} s with no answer`;
+  const lines = String(r.err ?? '').trim().split('\n').map((l) => l.trim()).filter(Boolean);
+  return lines.find((l) => !/^(warning|hint):/i.test(l)) ?? lines[0] ?? `exit ${r.status}`;
+}
 // The format of the records that this plugin writes. A repo with a higher `.records-epoch` was
 // changed by a newer plugin (a layout change or a history rewrite): this one does not write it.
 export const RECORDS_EPOCH = 2;
@@ -105,20 +119,20 @@ function unitBusy(home, unit) {
 
 /**
  * One sync of the clone at `home`. `me` is this machine; `held(path)` says why a path stays out
- * of every commit (or null). Returns `{ pushed, offline, tries, sent, fenced, parked, keptLocal,
+ * of every commit (or null); `skip` are globs that the snapshot does not read. Returns `{ pushed, offline, tries, sent, fenced, parked, keptLocal,
  * held, applied, head }`; throws when git fails in a way that a try again cannot fix.
  */
-export function composeSync(home, { me, branch = 'main', remote = 'origin', offline = false, held = () => null, kill = process.env.SDLC_COMPOSE_KILL || null } = {}) {
+export function composeSync(home, { me, branch = 'main', remote = 'origin', offline = false, held = () => null, skip = [], kill = process.env.SDLC_COMPOSE_KILL || null } = {}) {
   const dir = resolve(home);
   const idx = join(dir, '.git', `wf-index-${process.pid}-${randomBytes(3).toString('hex')}`);
   const G = (args, o = {}) => {
-    const r = spawnSync('git', ['-C', dir, '-c', 'core.longpaths=true', '-c', 'core.autocrlf=input', '-c', 'core.quotepath=false', ...args], {
+    const r = spawnSync('git', ['-C', dir, '-c', 'core.longpaths=true', '-c', 'core.autocrlf=input', '-c', 'core.safecrlf=false', '-c', 'core.quotepath=false', ...args], {
       encoding: o.raw ? 'buffer' : 'utf8', maxBuffer: 1 << 29, input: o.input, windowsHide: true, timeout: o.timeout ?? 120_000,
       env: { ...process.env, GIT_TERMINAL_PROMPT: '0', ...(o.idx ? { GIT_INDEX_FILE: idx } : {}) },
     });
     return { status: r.status, out: o.raw ? r.stdout : String(r.stdout ?? '').replace(/\n$/, ''), err: String(r.stderr ?? '') };
   };
-  const M = (args, o) => { const r = G(args, o); if (r.status !== 0) throw new Error(`git ${args.slice(0, 2).join(' ')}: ${r.err.trim().split('\n')[0]}`); return r.out; };
+  const M = (args, o) => { const r = G(args, o); if (r.status !== 0) throw new Error(`git ${args.slice(0, 2).join(' ')}: ${gitFailure(r, o?.timeout ?? 120_000)}`); return r.out; };
   const ref = (name) => G(['rev-parse', '-q', '--verify', `${name}^{commit}`]).out || null;
   const tree = (t) => (t ? new Map(M(['ls-tree', '-r', '-z', t]).split('\0').filter(Boolean).map((l) => { const tab = l.indexOf('\t'); const [mode, , sha] = l.slice(0, tab).split(' '); return [l.slice(tab + 1), `${mode} ${sha}`]; })) : new Map());
   const text = (e) => (e ? M(['cat-file', 'blob', e.split(' ')[1]]) : '');
@@ -129,11 +143,18 @@ export function composeSync(home, { me, branch = 'main', remote = 'origin', offl
     // 1. The snapshot, with the guards.
     let base = ref(SYNCED_REF);
     if (!base) { base = ref(tracking) ?? ref('HEAD'); if (base) M(['update-ref', SYNCED_REF, base]); }
-    M(['read-tree', ...(base ? [base] : ['--empty'])], { idx: true });
+    // The private index starts from the cache of the last snapshot, which holds the stat data of
+    // each file: `read-tree -m` keeps it for the entries that match the base, so `add` hashes only
+    // the files that changed. A fresh index would hash every file of the clone at each sync.
+    const cache = join(dir, '.git', SNAPSHOT_CACHE);
+    if (base && existsSync(cache)) copyFileSync(cache, idx);
+    if (!base || !existsSync(idx) || G(['read-tree', '-m', base], { idx: true }).status !== 0) M(['read-tree', ...(base ? [base] : ['--empty'])], { idx: true });
     // A sparse clone (a cloud session) has only some paths on the disk: the snapshot takes only
     // those, so the others are not read as deleted.
     const sparse = sparsePaths(dir);
-    M(['add', '-A', ...(sparse ? ['--', ...sparse] : ['.'])], { idx: true });
+    // `skip`: globs of files that never enter a commit (the images, with an image store). The
+    // snapshot does not read them; a tracked one stays at its base entry, as a held path does.
+    M(['add', '-A', '--', ...(sparse ?? ['.']), ...skip.map((g) => `:(exclude,glob,icase)${g}`)], { idx: true, timeout: ADD_TIMEOUT_MS });
     const B = tree(base);
     const staged = M(['diff', '--cached', '--name-only', '-z', '--no-renames', base ?? EMPTY_TREE], { idx: true }).split('\0').filter(Boolean);
     const back = [];
@@ -147,6 +168,9 @@ export function composeSync(home, { me, branch = 'main', remote = 'origin', offl
     }
     if (back.length) M(['update-index', '-z', '--index-info'], { idx: true, input: back.join('') });
     const snap = M(['write-tree'], { idx: true });
+    // The held paths are back at their base entries, so the cache matches the snapshot: the next
+    // sync reads only what changed after it. Best effort: a missing cache costs time, not data.
+    try { copyFileSync(idx, `${cache}.tmp`); renameSync(`${cache}.tmp`, cache); } catch {}
     const prior = ref(LOCAL_REF);
     const parents = [base, prior && prior !== base && G(['merge-base', '--is-ancestor', prior, base ?? prior]).status !== 0 ? prior : null].filter(Boolean);
     const local = M(['commit-tree', snap, ...parents.flatMap((p) => ['-p', p]), '-m', `checkpoint ${me}`]);
@@ -231,8 +255,9 @@ export function composeSync(home, { me, branch = 'main', remote = 'origin', offl
         M(['update-ref', `refs/heads/${branch}`, next]);
         // The chain of offline checkpoints is in the history now: the next snapshot starts anew.
         M(['update-ref', LOCAL_REF, next]);
-        // The index of the clone, so that git status reads the new head. Best effort.
-        G(['read-tree', next]);
+        // The index of the clone, so that git status reads the new head. Best effort. `-m` keeps
+        // the stat data of the entries that did not change, so git status does not hash them all.
+        if (G(['read-tree', '-m', next]).status !== 0) G(['read-tree', next]);
       }
       out.pushed = Boolean(next);
       out.head = next;

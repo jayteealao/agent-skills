@@ -33,8 +33,11 @@ import { writeFileAtomic } from './atomic-write.mjs';
 import { readMachineConfig, sdlcHomeDir } from './home.mjs';
 
 export const IMAGE_RE = /\.(png|jpe?g|webp|gif|mp4|webm)$/i;
+/** The globs of the same files, for a git pathspec (a test holds the two together). */
+export const IMAGE_GLOBS = ['png', 'jpg', 'jpeg', 'webp', 'gif', 'mp4', 'webm'].map((e) => `**/*.${e}`);
 export const REF_SUFFIX = '.img.json';
 const MAX_BYTES = 200 * 1024 * 1024;
+const SAVE_EVERY = 200;
 
 export const isImage = (p) => IMAGE_RE.test(String(p));
 export const refPathOf = (p) => `${p}${REF_SUFFIX}`;
@@ -139,13 +142,18 @@ export function imageFiles(clone, under = '') {
 /**
  * Give every image of the clone its reference: upload a design image, then write its reference;
  * an evidence image gets a `local` reference. An image whose size and time did not change since
- * the last pass is not read again. Returns `{ uploaded, local, failed: [{ path, why }] }`.
+ * the last pass is not read again. The index of what was read is saved every SAVE_EVERY images,
+ * so a pass that is stopped keeps its work. With `budgetMs`, the pass uploads no more once the
+ * time is spent: the images left wait for the next pass (`deferred`), so a large backlog does not
+ * hold back the commit of a sync. Returns `{ uploaded, local, deferred, failed: [{ path, why }] }`.
  */
-export async function uploadImages(clone, { home = sdlcHomeDir(), machine, cfg = imagesConfig(readMachineConfig(home)) } = {}) {
-  const out = { uploaded: [], local: [], failed: [] };
+export async function uploadImages(clone, { home = sdlcHomeDir(), machine, cfg = imagesConfig(readMachineConfig(home)), budgetMs = null } = {}) {
+  const out = { uploaded: [], local: [], deferred: 0, failed: [] };
   if (!cfg) return out;
   const index = readIndex(home);
   const seen = {};
+  const until = budgetMs == null ? Infinity : Date.now() + budgetMs;
+  let read = 0;
   for (const rel of imageFiles(clone)) {
     if (rel.split('/').length < 2 || rel.startsWith('.')) continue;
     const file = join(clone, ...rel.split('/'));
@@ -155,6 +163,9 @@ export async function uploadImages(clone, { home = sdlcHomeDir(), machine, cfg =
     const ref = readRef(file);
     if (known && known.size === st.size && known.mtimeMs === st.mtimeMs && ref?.sha256 === known.sha256) { seen[rel] = known; continue; }
     if (st.size > MAX_BYTES) { out.failed.push({ path: rel, why: `over ${MAX_BYTES >> 20} MB` }); continue; }
+    // Past the budget, an image that needs a read waits; what the index knows is kept for it.
+    if (Date.now() > until) { out.deferred += 1; if (known) seen[rel] = known; continue; }
+    if (++read % SAVE_EVERY === 0) writeFileAtomic(indexPath(home), JSON.stringify({ ...index, ...seen }));
     const body = readFileSync(file);
     const hash = sha256(body);
     seen[rel] = { size: st.size, mtimeMs: st.mtimeMs, sha256: hash };

@@ -23,7 +23,7 @@ import { randomBytes } from 'node:crypto';
 import { dirname, isAbsolute, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { machineName, readMachineConfig, sdlcHomeDir } from './home.mjs';
-import { imagesConfig, isImage, uploadImagesSync } from './records-images.mjs';
+import { IMAGE_GLOBS, imagesConfig, isImage, uploadImagesSync } from './records-images.mjs';
 import { productRemote } from './records-join.mjs';
 import { agentFix, personFix, refuse } from './fix.mjs';
 import { dropLock, takeLock as takeFileLock, withFileLock } from './file-lock.mjs';
@@ -1106,6 +1106,9 @@ export function syncRecords(root) {
   return out;
 }
 
+// The time that one sync spends on uploads of images: past it, they wait for the next sync.
+const UPLOAD_BUDGET_MS = 2 * 60_000;
+
 /**
  * The sync by composing (lib/records-compose.mjs), when `records.sync: compose` is set: no
  * pull, no rebase; the units that this computer may not send are parked, and the rest go.
@@ -1124,14 +1127,15 @@ export function composeNow(home = recordsHome(), { project = null } = {}) {
   const images = imagesConfig();
   let up = null;
   if (images) {
-    up = uploadImagesSync(home, { machine: machineName() });
+    // At most two minutes of uploads per sync: a backlog drains over several syncs.
+    up = uploadImagesSync(home, { machine: machineName(), budgetMs: UPLOAD_BUDGET_MS });
     const failed = up.error ? [{ path: '(images)', why: up.error }] : up.failed ?? [];
     if (failed.length) logRecordsFailure({ project, step: 'images', error: `${failed.length} image(s) not sent to the store: ${failed.slice(0, 3).map((f) => `${f.path} (${f.why})`).join(', ')}` });
   }
   const held = (p) => (keptOutOfCommits(p, home) ? 'it stays out of the commits' : images && isImage(p) ? 'an image goes to the image store, not to git' : null);
   try {
-    const r = withRecordsLock(() => composeSync(home, { me: machineName(), branch: mainBranch(home), held }));
-    return { ok: true, ...r, ...(up ? { images: { uploaded: up.uploaded?.length ?? 0, local: up.local?.length ?? 0, failed: up.error ? 1 : up.failed?.length ?? 0 } } : {}) };
+    const r = withRecordsLock(() => composeSync(home, { me: machineName(), branch: mainBranch(home), held, skip: images ? IMAGE_GLOBS : [] }));
+    return { ok: true, ...r, ...(up ? { images: { uploaded: up.uploaded?.length ?? 0, local: up.local?.length ?? 0, failed: up.error ? 1 : up.failed?.length ?? 0, ...(up.deferred ? { deferred: up.deferred } : {}) } } : {}) };
   } catch (e) {
     logRecordsFailure({ project, step: 'compose', error: e.message });
     return { ok: false, error: e.message };

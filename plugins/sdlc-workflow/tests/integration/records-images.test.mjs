@@ -11,7 +11,7 @@ import { dirname, join } from 'node:path';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { fetchImages, foldFetch, isDesignImage, readRef, refPathOf, signRequest, uploadImages } from '../../lib/records-images.mjs';
+import { IMAGE_GLOBS, fetchImages, foldFetch, isDesignImage, isImage, readRef, refPathOf, signRequest, uploadImages } from '../../lib/records-images.mjs';
 
 const git = (cwd, ...args) => execFileSync('git', args, { cwd, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }).trim();
 const sha = (b) => createHash('sha256').update(b).digest('hex');
@@ -167,5 +167,27 @@ test('a read fills the cache and nothing else, and the gate counts the cached im
     assert.equal(existsSync(join(b, 'p', '_design', 'approvals', 'a', 's.png')), false, 'no file of the records changed');
     assert.ok(existsSync(join(bhome, 'cache', 'sha256', sha('png-bytes'))));
     assert.deepEqual(foldFetch(['p/_design/approvals/a/s.png is missing'], f, b), []);
+  } finally { s.stop(); w.done(); }
+});
+
+test('the image globs name the same files as the image test', () => {
+  for (const e of IMAGE_GLOBS.map((g) => g.slice('**/*.'.length))) assert.equal(isImage(`p/a.${e}`), true, e);
+  assert.ok(['png', 'jpg', 'jpeg', 'webp', 'gif', 'mp4', 'webm'].every((e) => IMAGE_GLOBS.includes(`**/*.${e}`)));
+});
+
+test('an upload past its time budget waits for the next pass, and the next pass sends it', async () => {
+  const w = world();
+  const s = await store();
+  try {
+    const a = join(w.top, 'alpha');
+    const one = w.put(a, 'p/_design/approvals/a/one.png', 'one');
+    const home = join(w.top, 'home');
+    mkdirSync(home);
+    const late = await uploadImages(a, { home, machine: 'alpha', cfg: s.cfg, budgetMs: -1 });
+    assert.deepEqual([late.uploaded.length, late.deferred], [0, 1]);
+    assert.equal(existsSync(refPathOf(one)), false, 'no reference for an image that waits');
+    const next = await uploadImages(a, { home, machine: 'alpha', cfg: s.cfg, budgetMs: 60_000 });
+    assert.deepEqual([next.uploaded.length, next.deferred], [1, 0]);
+    assert.equal(readRef(one).sha256, sha(Buffer.from('one')));
   } finally { s.stop(); w.done(); }
 });

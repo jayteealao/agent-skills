@@ -9,7 +9,7 @@ import { dirname, join } from 'node:path';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { composeSync, mayChange, parseOwner } from '../../lib/records-compose.mjs';
+import { SNAPSHOT_CACHE, composeSync, gitFailure, mayChange, parseOwner } from '../../lib/records-compose.mjs';
 import { keptOutOfCommits } from '../../lib/records-sync.mjs';
 
 const ENGINE = join(import.meta.dirname, '..', '..', 'lib', 'records-compose.mjs');
@@ -163,5 +163,34 @@ test('a kill at each step loses no write that was on the disk', { timeout: 300_0
       assert.equal(x.r(c, `p/inbox-of-d-${i}/a`), `d${i}\n`);
     }
     assert.equal(git(c, 'rev-parse', 'main'), git(d, 'rev-parse', 'main'));
+  } finally { x.done(); }
+});
+
+test('a git failure says a timeout, and a warning before the error is not the error', () => {
+  assert.equal(gitFailure({ status: null, err: "warning: in the working copy of 'a', CRLF will be replaced by LF" }, 120_000), 'stopped after 120 s with no answer');
+  assert.equal(gitFailure({ status: 128, err: 'warning: CRLF will be replaced\nfatal: not a git repository\n' }, 1000), 'fatal: not a git repository');
+  assert.equal(gitFailure({ status: 1, err: '' }, 1000), 'exit 1');
+});
+
+test('the snapshot cache: a later change is sent, the skipped files never enter a commit, a tracked one stays', () => {
+  const x = world();
+  try {
+    const c = x.clone('C');
+    x.w(c, 'p/x/owner', 'c 1\n'); x.w(c, 'p/x/log', '1\n'); x.w(c, 'p/x/old.png', 'tracked');
+    assert.equal(x.sync(c, 'c').pushed, true);
+    assert.equal(x.up('p/x/old.png'), 'tracked');
+    assert.ok(existsSync(join(c, '.git', SNAPSHOT_CACHE)), 'the snapshot leaves its index');
+    const skip = ['**/*.png'];
+    const run = () => composeSync(c, { me: 'c', held: () => null, skip, kill: null });
+    // An edit after the cache, of the same size: the stat data differs, so the snapshot reads it.
+    x.w(c, 'p/x/log', '2\n'); x.w(c, 'p/x/new.png', 'skipped'); x.w(c, 'p/x/old.png', 'changed');
+    assert.equal(run().pushed, true);
+    assert.equal(x.up('p/x/log'), '2');
+    assert.equal(x.up('p/x/new.png'), null, 'a skipped file never enters a commit');
+    assert.equal(x.up('p/x/old.png'), 'tracked', 'a tracked skipped file stays at its base entry');
+    x.w(c, 'p/x/log', '3\n');
+    rmSync(join(c, '.git', SNAPSHOT_CACHE));
+    assert.equal(run().pushed, true, 'with no cache, the snapshot starts from the base');
+    assert.equal(x.up('p/x/log'), '3');
   } finally { x.done(); }
 });
