@@ -5,6 +5,12 @@ All notable changes to the sdlc-workflow plugin will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [10.0.0-next.40] - 2026-11-27
+
+- feat(sdlc-workflow): agents report faults of wf itself, triaged, for the person to decide
+- fix(sdlc-workflow): the references say what the code does for stops, splits, limits and issues
+- fix(sdlc-workflow): campaign split keeps nothing when it fails, and runs for an agent
+
 ## [10.0.0-next.39] - 2026-11-27
 
 - feat(sdlc-workflow): work that is not built yet takes up what changed after its plan
