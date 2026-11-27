@@ -5,6 +5,14 @@ All notable changes to the sdlc-workflow plugin will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [10.0.0-next.39] - 2026-11-27
+
+- feat(sdlc-workflow): work that is not built yet takes up what changed after its plan
+- feat(sdlc-workflow): a plan may mark a risky step as a probe, and its check is quick
+- feat(sdlc-workflow): a step only writes, and every test runs once at the end of the stage
+- fix(sdlc-workflow): a packet split from another keeps the decisions of the whole packet
+- fix(sdlc-workflow): a compose sync reads only what changed, and a backlog of images does not hold it
+
 ## [10.0.0-next.38] - 2026-11-27
 
 - feat(sdlc-workflow): split and merge slices, split a started packet, and stop a run after a step
