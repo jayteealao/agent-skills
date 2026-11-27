@@ -17,6 +17,8 @@
  *   ahead   <root> <source> <packet-key>...          the person let these packets run ahead of the skipped ones
  *   digest  <root> <source> <packet-key> [--answer a]  mark the delegate digest of a packet as answered
  *   open    <root> <source> <packet-key>             write the workflow folder of a build packet (section 5)
+ *   split   <root> <source> <packet-key> --slices a,b --into <key> [--title t] [--reason r]
+ *                                                   move slices that have not started to a new packet right after it
  *   land    <root> <source> [<packet-key>] [--trunk t]  put the walk's checkout on the list branch packets/<source>
  *                                                   (stacked PRs: on the layer of the packet, a gh-stack branch)
  *   start   <root> <source> <packet-key> [--trunk t] set base-branch of the packet; a migrated packet commits, rebases and merges first
@@ -39,10 +41,11 @@ import { existsSync, lstatSync, mkdirSync, readdirSync, readFileSync, renameSync
 import { basename, dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { stringify } from '../lib/yaml.mjs';
-import { DECISIONS_FILE, HOW_FAR_KEY, HOW_FAR_QUESTION, RUN_DECISIONS_KEY, RUN_DECISIONS_QUESTION, addDecision, answeredBy, appendEntry, decisionsOf, runDelegatedIn, storeText } from '../lib/decisions.mjs';
+import { DECISIONS_FILE, HOW_FAR_KEY, HOW_FAR_QUESTION, RUN_DECISIONS_KEY, RUN_DECISIONS_QUESTION, addDecision, answeredBy, appendEntry, decisionsOf, readDecisions, runDelegatedIn, storeText, writeDecisions } from '../lib/decisions.mjs';
+import { moveSlice } from '../lib/slice-ops.mjs';
 
 import { limitsOf } from '../lib/limits.mjs';
-import { openSlices as openOf, rosterEntries, totalSlices } from '../lib/roster.mjs';
+import { openSlices as openOf, packetSteps, rosterEntries, totalSlices } from '../lib/roster.mjs';
 import { checkList, writeList, readWorkFiles, listBranch, endBranch, BUILD_FORMS, PACKET_STATES, DEFAULT_FILES, IDEATE_FILES } from '../lib/packets.mjs';
 import { archiveBoard, docCheck, mergeArchive } from '../lib/brainstorm-archive.mjs';
 import { ROSTER_DOC, closesCycle, rosterOf, rosterWalkOrder, setFrontmatterValue, setRosterEntry } from '../lib/roster-edit.mjs';
@@ -70,9 +73,9 @@ import { issueKeyOf, issueQuestionKey, issueRecordOf } from '../lib/issue-place.
 import { importPacketIssues, packetIssuesFile, readPacketIssues } from '../lib/issue-apply.mjs';
 
 /** The sub-commands of this script: a fix names only these. */
-export const COMMANDS = Object.freeze(['check', 'write', 'archive', 'status', 'next', 'plan', 'skip', 'unskip', 'ahead', 'digest', 'open', 'land', 'start', 'built', 'reopen', 'done', 'close', 'accept', 'slice-order', 'migrate', 'remove-worktree']);
+export const COMMANDS = Object.freeze(['check', 'write', 'archive', 'status', 'next', 'plan', 'skip', 'unskip', 'ahead', 'digest', 'open', 'split', 'land', 'start', 'built', 'reopen', 'done', 'close', 'accept', 'slice-order', 'migrate', 'remove-worktree']);
 
-const USAGE ='Usage: campaign.mjs <check|write|archive> <source-dir|board-file> | <status|next|plan|digest|open|land|start|built|reopen|done|close|accept|skip|unskip|ahead|migrate|remove-worktree> <projectRoot> <source> ... | slice-order <checkout> <slug> add ...';
+const USAGE ='Usage: campaign.mjs <check|write|archive> <source-dir|board-file> | <status|next|plan|digest|open|split|land|start|built|reopen|done|close|accept|skip|unskip|ahead|migrate|remove-worktree> <projectRoot> <source> ... | slice-order <checkout> <slug> add ...';
 // A usage error names its repair like every other failure.
 const USAGE_FIX = fixLines(agentFix('Run the command again with a sub-command and the arguments that the usage line names.')).join('\n');
 
@@ -529,9 +532,11 @@ function statusCmd(root, src, f = {}) {
     return { ok: true, source: src, migrate: 'finish', reason: 'the list is written and the old ledger is still in work/campaign/: finish the migration (section 12.2 steps 8 to 10)', next: `campaign.mjs migrate <root> ${src} finish` };
   }
   const branch = listBranch(src);
+  const limits = limitsOf(root);
   const rows = packets.map((p) => ({
     key: p.key, slug: p['packet-slug'], form: p.form, state: p.state, order: p.order, 'try-out': p['try-out'] ?? null,
     ...(p.migrated ? { migrated: true } : {}), ...(p.skipped ? { skipped: p.skipped } : {}), ...(p['ahead-of']?.length ? { 'ahead-of': p['ahead-of'] } : {}),
+    ...packetLoadOf(root, p, limits),
   }));
   const { current, waiting, held } = walkPick(root, src, packets);
   const skipped = packets.filter((p) => p.skipped && !['done', 'dropped'].includes(p.state)).map((p) => ({ key: p.key, slug: p['packet-slug'], state: p.state, reason: p.skipped.reason ?? null }));
@@ -657,7 +662,7 @@ function sectionText(text, heading) {
  * The records of a fresh packet folder (section 5), from the packet file and the list index:
  * { '00-index.md', '01-intake.md', '02-shape.md': { frontmatter, body }, 'decisions.yaml': text }.
  */
-export function packetFolderRecords({ src, packet, packetText, list, trunk, now }) {
+export function packetFolderRecords({ src, packet, packetText, list, trunk, now, sourceSteers = [] }) {
   const slug = packet['packet-slug'];
   const originPacket = `${workflowRel(src)}/work/${packet.file}`;
   const decisions = packet['carried-decisions'] ?? [];
@@ -789,6 +794,17 @@ export function packetFolderRecords({ src, packet, packetText, list, trunk, now 
       answer: 'The person left this to the build. Choose the option that best fits the acceptance criteria, and record the choice as an assumption.',
     }, { now });
   }
+  // Every live steer of the brainstorm that binds this packet goes with it: one scoped to the
+  // packet, and one scoped to no packet. The board answers above are only the decisions the board
+  // names; a steer the person gave in the talk of the brainstorm binds the build as well.
+  const have = new Set(store.map((e) => e.key).filter(Boolean));
+  for (const e of sourceSteers) {
+    if (e.kind !== 'steer' || e['superseded-by'] || (e.key && have.has(e.key))) continue;
+    const p = e.scope?.packet;
+    if (p && p !== packet.key && p !== slug) continue;
+    const { packet: _p, ...scope } = e.scope ?? {};
+    appendEntry(store, { kind: 'steer', key: e.key ?? null, question: e.question ?? null, answer: e.answer, by: e.by === 'person' ? 'person' : e.by, scope, stage: 'brainstorm', source: `${src}/decisions.yaml#${e.id}` }, { now });
+  }
   return {
     [INDEX_NAME]: { frontmatter: index, body: '' },
     '01-intake.md': { frontmatter: intake, body: intakeBody },
@@ -825,7 +841,9 @@ function openCmd(root, src, [key], f) {
     return { ok: true, opened: true, adopted: true, key: packet.key, slug, ...(carried.length ? { carriedIssues: carried } : {}) };
   }
   const boardFile = boardFileOf(sourceDir(root, src));
-  const records = packetFolderRecords({ src, packet, packetText: readFileSync(packet.path, 'utf8'), list: { ...list, board: boardFile }, trunk, now: nowIso() });
+  let sourceSteers = [];
+  try { sourceSteers = decisionsOf(sourceDir(root, src)); } catch { sourceSteers = []; }
+  const records = packetFolderRecords({ src, packet, packetText: readFileSync(packet.path, 'utf8'), list: { ...list, board: boardFile }, trunk, now: nowIso(), sourceSteers });
   mkdirSync(dir, { recursive: true });
   const wrote = new Set();
   for (const [name, r] of Object.entries(records)) {
@@ -838,6 +856,132 @@ function openCmd(root, src, [key], f) {
   indexRow(root, slug, listBranch(src));
   const carried = importCarried(packet, dir);
   return { ok: true, opened: true, key: packet.key, slug, wrote: [...wrote].map((n) => posix(relative(root, join(dir, n)))), ...(carried.length ? { carriedIssues: carried } : {}) };
+}
+
+
+// ---------------------------------------------------------------- split (a started packet in two)
+
+/**
+ * Split a started packet: the slices named move to a new packet that runs right after it. The new
+ * packet goes on the board after `<packet>` (the orders after it move one down), is written and
+ * opened as any packet is, and takes each slice with `slice move`, its record and the decisions
+ * scoped to it. A slice that stays may not depend on one that moves: the earlier packet would
+ * wait for the later one. Refused while a run holds the workflow, or while a moved slice has started.
+ */
+function splitCmd(root, src, [key], f) {
+  const { packet, packets } = packetOf(root, src, key);
+  if (packet.state !== 'open') return { ok: false, error: `${packet.key} is ${packet.state}; split cuts an open packet`, fix: agentFix(packet.state === 'written' ? `${packet.key} has not started: change it on the board (board move, board apply), then run campaign write.` : `${packet.key} is ${packet.state}: its slices are built. Add new work as a new packet on the board.`) };
+  const slug = packet['packet-slug'];
+  const into = String(f.into ?? '').trim();
+  const moving = [...new Set(String(f.slices ?? '').split(',').map((s) => s.trim()).filter(Boolean))];
+  if (!into || !moving.length) return { ok: false, error: 'split: --slices <a,b> and --into <the key of the new packet> are required', fix: agentFix('Run split again with --slices, the slices that leave, and --into, the key of the packet that takes them.') };
+  if (!/^[a-z0-9][a-z0-9-]*$/.test(into)) return { ok: false, error: `split: ${into} must be lower-case words joined by -`, fix: agentFix('Run split again with a key of lower-case words joined by -.') };
+  if (packets.some((p) => p.key === into || p['packet-slug'] === into) || hasDoc(wfDir(root, into), INDEX_NAME)) return { ok: false, error: `split: ${into} is a packet or a workflow already`, fix: agentFix('Run split again with a new key.') };
+  const last = lastJournalLine(root, slug);
+  if (last && last.event !== 'run-end') return { ok: false, error: `split: a run of ${slug} has not ended; a packet is split between runs`, fix: agentFix(`Stop the run of ${slug} (control stop --after stage), wait for its end, then run split again.`) };
+  const dir = wfDir(root, slug);
+  const roster = rosterEntries(dir);
+  if (!roster) return { ok: false, error: `split: ${slug} has no roster (03-slice.md)`, fix: agentFix(`Slice ${slug} first: /wf slice ${slug}.`) };
+  const at = new Map(roster.map((s) => [s.slug, s]));
+  for (const s of moving) {
+    const e = at.get(s);
+    if (!e) return { ok: false, error: `split: ${s} is not a slice of ${slug}`, fix: agentFix(`Name slices of the roster of ${slug}: ${roster.map((x) => x.slug).join(', ')}.`) };
+    if (['complete', 'deferred', 'in-progress', 'skipped', 'dropped'].includes(String(e.status)) || hasDoc(dir, `05-implement-${s}.md`)) return { ok: false, error: `split: ${s} is ${e.status}${hasDoc(dir, `05-implement-${s}.md`) ? ' and has an implement record' : ''}; only a slice that has not started moves`, fix: agentFix(`Leave ${s} out of --slices.`) };
+  }
+  const gone = new Set(moving);
+  const waits = roster.filter((s) => !gone.has(s.slug) && !['skipped', 'dropped'].includes(String(s.status)) && (s['depends-on'] ?? []).some((d) => gone.has(d)));
+  if (waits.length) return { ok: false, error: `split: ${waits.map((s) => `${s.slug} waits for ${(s['depends-on'] ?? []).filter((d) => gone.has(d)).join(', ')}`).join('; ')}; a slice that stays cannot wait for the later packet`, fix: agentFix(`Move ${waits.map((s) => s.slug).join(', ')} too, or leave the slices they wait for out of --slices.`) };
+  // The board: the new packet right after this one, written as any packet is.
+  const sdir = sourceDir(root, src);
+  const boardFile = boardFileOf(sdir);
+  const boardPath = join(sdir, boardFile);
+  const board = JSON.parse(readFileSync(boardPath, 'utf8'));
+  const work = board.work ?? [];
+  const parent = work.find((w) => w.key === packet.key);
+  if (!parent) return { ok: false, error: `split: the board of ${src} has no packet ${packet.key}`, fix: agentFix('Repair the board first: run campaign check.') };
+  const order = Number(parent.order);
+  for (const w of work) if (Number.isInteger(w.order) && w.order > order) w.order += 1;
+  const reason = String(f.reason ?? '').trim() || `the slices ${moving.join(', ')} of ${packet.key} are over its budget`;
+  work.push({
+    key: into, title: String(f.title ?? '').trim() || `${parent.title ?? packet.key}: ${moving.join(', ')}`, shape: parent.shape ?? 'intake', entry: `split from ${packet.key}`,
+    state: 'written', slug: into, order: order + 1, 'why-here': `split from ${packet.key}: ${reason}`, 'split-from': packet.key, items: [],
+    goal: `Build the slices ${moving.join(', ')}, split from ${packet.key}.`, 'acceptance-criteria': moving.map((s) => `The slice ${s} passes its verify.`),
+    'ux-impact': parent['ux-impact'] ?? 'none', 'ux-impact-confirmed': true, 'try-out': parent['try-out'] ?? 'no', 'estimated-slices': moving.length,
+  });
+  board.work = work;
+  const before = readFileSync(boardPath, 'utf8');
+  writeFileAtomic(boardPath, `${JSON.stringify(board, null, 2)}\n`);
+  const wrote = writeList(sdir, { isIgnored: gitIgnoredCheck(root), boardFile, limits: limitsOf(root) });
+  if (!wrote.ok) {
+    writeFileAtomic(boardPath, before);
+    return { ok: false, error: `split: the list does not pass its check with ${into}: ${(wrote.errors ?? [wrote.error]).join('; ')}`, fix: boardErrorsFix('write', sdir) };
+  }
+  const opened = openCmd(root, src, [into], f);
+  if (!opened.ok) return { ...opened, error: `split: ${into} is on the list, and its open failed: ${opened.error}` };
+  // The slices move with their records; the target needs a roster to take them.
+  const target = wfDir(root, into);
+  if (!hasDoc(target, '03-slice.md')) writeDoc(target, '03-slice.md', { frontmatter: { schema: 'sdlc/v1', type: 'slice-index', slug: into, slices: [] } });
+  const moved = [];
+  for (const s of roster.filter((x) => gone.has(x.slug)).map((x) => x.slug)) {
+    moveSlice(dir, target, s, { fromSlug: slug, toSlug: into, reason: `campaign split: ${reason}` });
+    moved.push(s);
+  }
+  // A moved slice that waited for a slice that stays waits for nothing now: the packet order holds it.
+  const tf = readDoc(target, '03-slice.md')?.frontmatter ?? {};
+  const crossed = [];
+  setRecordFields(target, '03-slice.md', { slices: (tf.slices ?? []).map((s) => {
+    const d = (s['depends-on'] ?? []).filter((x) => gone.has(x));
+    const cut = (s['depends-on'] ?? []).filter((x) => !gone.has(x));
+    if (cut.length) crossed.push(`${s.slug} after ${cut.join(', ')} of ${slug}`);
+    return { ...s, 'depends-on': d };
+  }) });
+  for (const s of moved) {
+    const fm = readDoc(target, `03-slice-${s}.md`)?.frontmatter;
+    if (fm) setRecordFields(target, `03-slice-${s}.md`, { 'depends-on': (fm['depends-on'] ?? []).filter((x) => gone.has(x)) });
+  }
+  const decisions = moveScopedDecisions(dir, target, gone, { from: slug, to: into });
+  return { ok: true, key: packet.key, into, slug: into, order: order + 1, moved, decisions, ...(crossed.length ? { crossed } : {}), ...(opened.carriedIssues ? { carriedIssues: opened.carriedIssues } : {}) };
+}
+
+/**
+ * The live decisions scoped to a slice of `slices` go with it to the store of `toDir`: a copy with
+ * a new id and a `moves` line, and the entry in the source is ended with the reason.
+ */
+function moveScopedDecisions(fromDir, toDir, slices, { from, to }) {
+  const now = nowIso();
+  const source = readDecisions(fromDir);
+  const target = readDecisions(toDir);
+  let max = target.reduce((m, e) => Math.max(m, Number(String(e.id).replace(/^D-/, '')) || 0), 0);
+  const ids = [];
+  for (const e of source) {
+    if (e['superseded-by'] || !slices.has(e.scope?.slice)) continue;
+    max += 1;
+    const id = `D-${String(max).padStart(3, '0')}`;
+    target.push({ ...structuredClone(e), id, 'copied-from': `${from}:${e.id}`, moves: [...(e.moves ?? []), { at: now, from: `${from}/${e.scope.slice}`, to: `${to}/${e.scope.slice}`, why: 'campaign split' }] });
+    e['superseded-by'] = 'ended';
+    e['ended-at'] = now;
+    e['ended-why'] = `moved with the slice ${e.scope.slice} to ${to} (${id})`;
+    ids.push(`${e.id} → ${id}`);
+  }
+  if (ids.length) { writeDecisions(toDir, target); writeDecisions(fromDir, source); }
+  return ids;
+}
+/**
+ * The load of a packet for status: its steps against the budget and its open slices, from the
+ * roster of its workflow (a slice of unknown size counts as full, and is named in `unknown`), and
+ * the issues that an earlier packet carried into it and that its talk has not taken yet.
+ */
+function packetLoadOf(root, packet, limits) {
+  const out = {};
+  const entries = BUILD_FORMS.includes(packet.form) ? rosterEntries(wfDir(root, packet['packet-slug'])) : null;
+  if (entries) {
+    const size = packetSteps(wfDir(root, packet['packet-slug']), entries, limits);
+    out.steps = { total: size.steps, budget: limits.budgetSteps, over: size.steps > limits.budgetSteps, ...(size.unknown.length ? { unknown: size.unknown } : {}) };
+    out.openSlices = openOf(entries).map((e) => e.slug);
+  }
+  const carried = carriedIssuesOf(packet);
+  if (carried.length) out.carriedIssues = carried.map((i) => ({ issue: i.issue, text: i.text, ...(i.steps ? { steps: i.steps } : {}) }));
+  return out;
 }
 
 /** The issues that an earlier packet carried into this one (`<packet-slug>.issues.json`), posted to the talk of its workflow. */
@@ -2456,6 +2600,7 @@ function dispatchCmd(cmd, pos, f) {
     case 'ahead': return aheadCmd(root, second, rest);
     case 'digest': return digestCmd(root, second, rest, f);
     case 'open': return openCmd(root, second, rest, f);
+    case 'split': return splitCmd(root, second, rest, f);
     case 'land': return landCmd(root, second, rest, f);
     case 'start': return startCmd(root, second, rest, f);
     case 'built': return builtCmd(root, second, rest, f);

@@ -195,7 +195,10 @@ export function refuseNoteToDoneSlice(dir, a) {
   }
 }
 
-export function decideAdd(dir, a, { by = null, stage = null } = {}) {
+export function decideAdd(dir, a, { by = null, stage = null, kind = null, cls = null } = {}) {
+  // The flags of the call (--kind, --class) are the default of every entry of a file; an entry
+  // that names its own wins.
+  a = { ...a, kind: a.kind ?? kind ?? undefined, class: a.class ?? cls ?? undefined };
   refuseNoteToDoneSlice(dir, a);
   const r = addDecision(dir, {
     kind: a.kind, key: a.key, question: a.question, answer: a.answer, by: a.by ?? by,

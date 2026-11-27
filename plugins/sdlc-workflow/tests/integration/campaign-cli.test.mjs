@@ -1520,3 +1520,41 @@ test('plan is compact by default: a list of 60 packets stays under the ceiling, 
     assert.ok(JSON.stringify(full, null, 2).length > size * 2, 'the full plan holds every packet');
   } finally { rmSync(root, { recursive: true, force: true }); }
 });
+
+test('split: slices of an open packet move to a new packet right after it, with their decisions', () => {
+  const root = makeRepo();
+  try {
+    const dir = writeBoard(root, [
+      { key: 'engine', title: 'Engine', shape: 'intake', slug: 'demo-engine', entry: 'x', state: 'proposed', order: 1, items: ['d-one'], goal: 'Build it.', 'acceptance-criteria': ['It runs.'], ...WRITE_UP },
+      { key: 'screen', title: 'Screen', shape: 'intake', slug: 'demo-screen', entry: 'x', state: 'proposed', order: 2, 'why-here': 'it shows the engine', items: ['d-two'], goal: 'Show it.', 'acceptance-criteria': ['It shows.'], ...WRITE_UP },
+    ], ['d-one', 'd-two']);
+    assert.equal(runCampaign(['write', dir]).ok, true);
+    assert.equal(runCampaign(['open', root, SRC, 'engine']).ok, true);
+    const eng = path.join(workflowsRoot(root), 'demo-engine');
+    writeDoc(eng, '03-slice.md', { frontmatter: { schema: 'sdlc/v1', type: 'slice-index', slug: 'demo-engine', slices: [
+      { slug: 'core', status: 'complete' }, { slug: 'rules', status: 'defined', 'depends-on': ['core'] }, { slug: 'report', status: 'defined', 'depends-on': ['rules'] }, { slug: 'docs', status: 'defined', 'depends-on': ['core'] },
+    ] } });
+    for (const s of ['rules', 'report', 'docs']) writeDoc(eng, `03-slice-${s}.md`, { frontmatter: { schema: 'sdlc/v1', type: 'slice', slug: 'demo-engine', 'slice-slug': s, status: 'defined' }, body: `# Slice: ${s}\n` });
+    addDecision(eng, { kind: 'answer', by: 'delegate', key: 'fmt', question: 'Format?', answer: 'csv', scope: { slice: 'report' } });
+    // A slice that stays may not wait for one that moves.
+    assert.match(runCampaign(['split', root, SRC, 'engine', '--slices', 'rules', '--into', 'engine-two']).error, /report waits for rules/);
+    const r = runCampaign(['split', root, SRC, 'engine', '--slices', 'rules,report', '--into', 'engine-two', '--title', 'Engine rules']);
+    assert.equal(r.ok, true, r.error);
+    assert.deepEqual([r.order, r.moved, r.crossed], [2, ['rules', 'report'], ['rules after core of demo-engine']]);
+    const packets = Object.fromEntries(readdirSync(path.join(wf(root, SRC), 'work')).filter((f) => f.endsWith('.md') && f !== 'index.md').map((f) => fm(path.join(wf(root, SRC), 'work', f))).filter((p) => p?.type === 'packet').map((p) => [p.key, [p.order, p.state]]));
+    assert.deepEqual(packets, { engine: [1, 'open'], 'engine-two': [2, 'open'], screen: [3, 'written'] });
+    const two = path.join(workflowsRoot(root), 'engine-two');
+    assert.deepEqual(frontmatterOfDoc(two, '03-slice.md').slices.map((s) => [s.slug, s['depends-on']]), [['rules', []], ['report', ['rules']]]);
+    assert.deepEqual(frontmatterOfDoc(eng, '03-slice.md').slices.map((s) => [s.slug, s.status]), [['core', 'complete'], ['rules', 'dropped'], ['report', 'dropped'], ['docs', 'defined']]);
+    const store = readFileSync(path.join(two, 'decisions.yaml'), 'utf8');
+    assert.match(store, /answer: csv/);
+    assert.match(store, /copied-from: demo-engine:D-\d+/);
+    assert.match(readFileSync(path.join(eng, 'decisions.yaml'), 'utf8'), /ended-why: moved with the slice report to engine-two/);
+    // Status shows the load of each packet: a slice of unknown size counts as full.
+    const row = runCampaign(['status', root, SRC]).packets.find((p) => p.key === 'engine-two');
+    assert.deepEqual([row.openSlices, row.steps.total, row.steps.unknown], [['rules', 'report'], 40, ['rules', 'report']]);
+    // The board is consistent: a later write keeps the orders.
+    assert.equal(runCampaign(['write', dir]).ok, true);
+    assert.equal(runCampaign(['split', root, SRC, 'screen', '--slices', 'x', '--into', 'screen-two']).ok, false, 'a written packet is changed on the board');
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});

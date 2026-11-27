@@ -16,7 +16,7 @@ The Monitor tool stops a watch after 30 minutes at most. The session has no watc
 
    Set the description to `yolo <slug>`.
 2. When the Monitor tool is not available, do not start a watch. The run is unchanged.
-3. When a Monitor expires and the Workflow did not return, start the same command again. Say nothing in chat: a re-arm is not news (C3). The watch keeps its offsets in `.watch-state.json`, so it misses no event. The watch also ends itself after 31 minutes, so a watch that the Monitor stop leaves running does not run for days.
+3. When a Monitor expires and the Workflow did not return, start the same command again. Say nothing in chat: a re-arm is not news (C3). The 30-minute cap is the host's Monitor, not the run: the watch keeps its offsets in `.watch-state.json` (its cursor), so the next watch starts where the last one stopped and misses no event. The watch also ends itself after 31 minutes, so a watch that the Monitor stop leaves running does not run for days.
 4. When the Monitor tool gives no output, use the one-shot watch. To test, start a Monitor whose command is only `echo ok`. When no event arrives, the Monitor gives no output in this session. Then:
    1. Start the watch with `--once` as a background shell task, with the longest timeout the tool allows (2 hours):
 
@@ -24,7 +24,7 @@ The Monitor tool stops a watch after 30 minutes at most. The session has no watc
       node "<pluginRoot>/scripts/yolo-watch.mjs" "<projectRoot>" <slug> --once
       ```
 
-   2. When the task ends, read its output. Each line is one event of the table below. Handle the events. The task ends only on news: a `stage-end`, a `decision`, a `question`, a `stop`, a `stale`, a `protected-change`, a `look-in`, or a `run-end`. A `commit` or a `stage-start` does not end it: their lines wait in the output until news comes.
+   2. When the task ends, read its output. Each line is one event of the table below. Handle the events. The task ends only on news: a `stage-end`, a `decision`, a `question`, a `stop`, a `stale`, a `quiet`, a `protected-change`, a `look-in`, or a `run-end`. A `commit` or a `stage-start` does not end it: their lines wait in the output until news comes.
    3. Start the same command again. The offsets in `.watch-state.json` keep every later event. Do not filter the output; the watch has no noise to remove.
    4. A `watch-timeout` line means that 110 minutes passed with no event. Start the command again, and say nothing in chat.
 5. On a relaunch of the same slug (yolo.md "Resuming"), start the same command. The person does not ask for the watch again. The new watch replaces the old one: the old watch emits `watch-replaced` and exits.
@@ -52,10 +52,11 @@ A host with no Monitor tool launches the driver with `wf_job { "op": "drive", "d
 | `decision` | The stage artifact waits for input, or records an `intent-bearing` decision. | A full note: the decision, the artifact, and what the person decides. | yes |
 | `question` | A stage agent holds an intent-bearing decision and waits for the answer in `decide wait`. `questions` lists each held question: its `key`, `question`, `options`, `recommended`, `stage` and `slice`. `until` is the end of the current call; the stage calls again until the answer is in the store. A question gives one event. | Ask the questions at once (C8). | yes |
 | `protected-change` | A protected file changed. `dirtyAtStart: true` means the file held the person's uncommitted edits. A file gives one event per 10 minutes, however often it is saved. In a worktree, uncommitted files at the watch start are an earlier run's work, not the person's, so they are not protected. | A full note: the file, the change, and the stage that ran. | yes |
-| `stale` | The running agent is silent. With `signal: transcript`, the agent's own transcript wrote nothing for 15 minutes: one tool call lasts 10 minutes at most, so the agent hangs. With `signal: pending-tool`, a tool call of the agent (`tool`, since `toolSince`) has no result yet: the agent waits on that tool, most often for the person's approval of a prompt. With `signal: journal`, no transcript was found, and the journal is silent past the liveness limit with an `agent-start` as its newest line. | A warning, worded per the staleness rule in [../_liveness.md](../_liveness.md). With `signal: transcript` or `signal: journal`, the agent hangs: say so, then stop the run and resume it yourself, per "A run that hangs" below. Do not wait for the person. With `signal: pending-tool`, say which tool call waits and since when, and ask the person to look for an approval prompt in the app. Do not offer to stop the run: a stop throws away the stage's work. | yes |
+| `stale` | The running agent is silent. With `signal: transcript`, the agent's own transcript wrote nothing for 15 minutes: one tool call lasts 10 minutes at most, so the agent hangs. With `signal: pending-tool`, a tool call of the agent (`tool`, since `toolSince`) has no result yet: the agent waits on that tool, most often for the person's approval of a prompt. With `signal: journal`, no transcript was found, and the journal is silent past the liveness limit with an `agent-start` as its newest line. A write of `steps.jsonl` or of the progress record, or a job of the run that still runs, is life: no `stale` comes while one of them is newer than the limit. | A warning, worded per the staleness rule in [../_liveness.md](../_liveness.md). With `signal: transcript` or `signal: journal`, the agent hangs: say so, then stop the run and resume it yourself, per "A run that hangs" below. Do not wait for the person. With `signal: pending-tool`, say which tool call waits and since when, and ask the person to look for an approval prompt in the app. Do not offer to stop the run: a stop throws away the stage's work. | yes |
 | `stop` | A stage agent returned `hard-stop`, or stopped on a stop request. | Why the run stopped, and the resume command. | yes |
 | `look-in` | A stage ran past its expected time: the stage's time box from the test profile, or 30 minutes when the profile gives no time for the suites of the stage (`--look-in <minutes>` sets one time for every stage; 0 turns it off). A stage gives one look-in past its expected time, and the next only past twice that time. `running` lists each open stage agent: its minutes, its `expectedMinutes`, `due` for the stages past their time, its `root`, its `journal`, and its `transcript` when the watch finds it. When the run decides for the person (the `run-decisions` steer takes the recommended option), the watch writes the look-in to `commentary.md` itself and does not send it to the session. | Send a reader to look in, and tell the person what is happening (C7). | no |
-| `run-end` | The driver ended. `inferred: true` means that the journal went silent after an `agent-end`. | The run summary. | yes |
+| `run-end` | The driver ended: its end line, or (`inferred: true`, `stoppedAt: driver`) the driver process is gone and wrote no end. | The run summary. | yes |
+| `quiet` | The journal went silent past the liveness limit after an `agent-end`, and no step, progress write or job shows life. It is a guess: the driver may be between two agents. The watch goes on; only the end line of the driver ends it. | Check the driver task. When it ended, give the run summary; else say nothing. | yes |
 | `watch-replaced` | A newer watch reads the same journal. This watch exited. | Nothing. Do not start this watch again. | no |
 | `watch-end` | The journal of each workflow has the end of its newest run, so the watch ended. | Nothing. Start a watch again only when a new run starts. | no |
 | `watch-timeout` | A `--once` watch gave no event for 110 minutes. | Nothing. Start the `--once` watch again. | no |
@@ -137,23 +138,21 @@ When the person asks for the commentary again, record `--event loud` the same wa
 
 ## Stop at the next boundary
 
-The person can stop the run at a stage boundary, for example "stop after the current verify" or "stop after this stage".
+The person can stop the run at a stage boundary or after a step, for example "stop after the current verify", "stop after this stage" or "stop after this step".
 
-1. Write the stop request. `<after>` is `current` for "after this stage", or the stage that the person names (`plan`, `implement`, `verify`, `review`):
+1. Write the stop request. `<after>` is `current` for "after this stage", `step` for "after this step", or the stage that the person names (`plan`, `implement`, `verify`, `review`):
 
-   ```
-   node "<pluginRoot>/scripts/yolo-watch.mjs" control "<projectRoot>" <slug> stop <after>
-   ```
+   `wf_act { "op": "control stop", "slug": "<slug>", "after": "<after>" }` (CLI: `node "<skill-dir>/scripts/wf.mjs" control stop "<projectRoot>" <slug> --after <after>`)
+
+   With `step`, the implement agent ends after the step that it ends next: `step done` returns "stop requested" as its next action, the agent records where the stage stands and returns, and the driver ends the run.
 
 2. Tell the person in one line where the run stops: the command prints that point. The agent that starts the next stage checks the request before it writes its start heartbeat. When the request holds, the check writes a `stop-honoured` line to the journal, the agent does no work, and the driver ends with `stoppedAt: stop-request`. The watch then shows the end of the run and no start of a stage. An agent that runs when you write the request is not cut short: the stop lands when it returns. Never stop the driver task by hand to make a stop request work.
 3. When the person adds a steering change in the same message, record the person's exact words with `decide add --kind steer` per [../_decisions.md](../_decisions.md). Give `--slice` when the words bind one slice. First read the live steers that the words could contradict: `decide list --kind steer --slice <slice>` when the words bind one slice, else `decide list --kind steer`. When the new words contradict a live steer, pass `--replaces <id>`. When the words are a rule for every workflow of the project, record them with `rule add` instead. The next run reads it. A stop request is a control signal, not steering: it says when the driver ends, not how a stage works.
 4. When the run ends with `stoppedAt: stop-request`, delete the request:
 
-   ```
-   node "<pluginRoot>/scripts/yolo-watch.mjs" control "<projectRoot>" <slug> clear
-   ```
+   `wf_act { "op": "control clear", "slug": "<slug>" }` (CLI: `node "<skill-dir>/scripts/wf.mjs" control clear "<projectRoot>" <slug>`)
 
-   The clear keeps a request that the person made after the run ended: that request is for the next run. When the person withdraws a request, add `force`.
+   The clear keeps a request that the person made after the run ended: that request is for the next run. When the person withdraws a request, add `"force": true` (CLI: `--force`). `control show` prints the request and where it lands.
 
    When the run ends another way first (questions, a hard stop, the endpoint), the request file stays, but the request is dropped: a request made before that run end stops no later run, whether it names `current` or a stage (`plan`, `implement`, `verify`, `review`). The stop check reports it `stale`. A request that the person makes after that run end holds for the next run.
 

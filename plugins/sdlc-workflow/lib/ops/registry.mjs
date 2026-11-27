@@ -26,7 +26,7 @@ const ROWS = {
     | design state | design refs check | design capture-path | design server status | design server url | record evidence`,
   wf_run: `record put | record draft | record edit | record set | record stage-done | record migrate | findings add | findings set
     | board add | board apply | board set | board prose | board render | board adopt | board move | board regroup | board remove
-    | slice drop | slice move | slice add | slice carry | issue place | progress set | talk post | talk reply | talk close | talk ping | talk claim | talk release | msg post
+    | slice drop | slice move | slice add | slice carry | slice split | slice merge | issue place | progress set | talk post | talk reply | talk close | talk ping | talk claim | talk release | msg post
     | page put | profile set | profile record | profile budget | index
     | design init | design foundation | design component add | design component link | design component remove | design component spec
     | design components scan | design components none | design components verify | design screen add | design screen remove | design screen rename
@@ -38,7 +38,7 @@ const ROWS = {
   wf_job: 'drive | profile run | receipt | talk job | design check | design captures | design review-pack',
   wf_act: `records link | records sync | records push | records flush | records close | records retry | records dismiss | records migrate
     | records claim | records release | records decline | records parked take | gh flush | gh backfill | setup | modernize | close | ship ready | ship merge | ship finish
-    | worktree add | worktree remove | design publish | design server start | design server stop | design server install | design server uninstall`,
+    | control stop | control clear | control show | worktree add | worktree remove | design publish | design server start | design server stop | design server install | design server uninstall`,
   wf_person: 'records join | records take | records parked drop | records rewrite backup | records rewrite export | records rewrite mirror | consent grant | consent revoke | rule add | rule end | rule adopt | standing set | standing clear | standing decline | design approve | design waive',
 };
 
@@ -49,7 +49,7 @@ const SIBLING_ROWS = {
     | orchestrate contract get | orchestrate screen | orchestrate state | orchestrate roster | orchestrate holdout | orchestrate helpers
     | optimize status | optimize propose-context | optimize report | goal status | goal lifecycle | prototype status | prototype check
     | ideate-sources args | ideate-sources check | design-boards check`,
-  wf_run: `campaign write | campaign archive | campaign next | campaign open | campaign reopen | campaign close | campaign slice-order
+  wf_run: `campaign write | campaign archive | campaign next | campaign open | campaign split | campaign reopen | campaign close | campaign slice-order
     | orchestrate contract put | orchestrate change propose | orchestrate path | orchestrate hold | orchestrate unproven | orchestrate milestones
     | orchestrate unit | orchestrate result | orchestrate scenario-wrong | orchestrate evidence | orchestrate scrub
     | optimize merge-consider | optimize idea-claim | optimize profile-record | optimize resume

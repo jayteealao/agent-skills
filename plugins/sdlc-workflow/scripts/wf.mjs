@@ -358,6 +358,19 @@
  *             record lists it under Carried Issues and sets carried-at, so a plan written
  *             before it is refreshed before the implement. Only a rung-3 or rung-4 placement does it
  *             Example: wf.mjs slice carry . demo web --issue T-12 --text "stale cache key" --placement 05i-issue-t12.md
+ *   slice    split <root> <slug> <slice> --part "<slice>:<ac>,<ac>;<new>:<ac>" --decision <id> [--reason r] [--json]
+ *             cut a slice that has not started into parts: each acceptance criterion (a 1-based
+ *             position, or an AC-<n> label) goes to one part, and the part named after the slice
+ *             keeps its slug and its records. The parts run in the order given, the slices that
+ *             waited for it wait for the last part, the estimate is divided by the share of
+ *             criteria, and its decisions follow the criteria they name (else every part). The
+ *             parts are joined by ; (a repeated --part joins the same way)
+ *             Example: wf.mjs slice split . demo engine --part "engine:1,2;engine-rules:3,4" --decision D-12
+ *   slice    merge <root> <slug> <slice> --from <slice>,<slice> --decision <id> [--reason r] [--json]
+ *             join slices that have not started into <slice>: their criteria, carried issues,
+ *             estimates and decisions; each slice of --from is dropped, "merged into <slice>".
+ *             Refused when the joined estimate passes the step limit (slices.maxSteps)
+ *             Example: wf.mjs slice merge . demo api --from api-docs --decision D-13
  *   issue    place <root> <slug> <id> [--apply] [--running a,b] [--review-open] [--final] [--as a] [--json]
  *             place the issue <id> of the talk from its investigation 05i-issue-<key>.md: the
  *             lowest rung of the ladder that holds, written into the record. --apply does it: a
@@ -487,6 +500,17 @@
  *   talk     list <root> <slug> [--thread id] [--after id] [--open] [--full] [--json]
  *             every thread of the run and who holds each resource: the audit of the talk
  *             Example: wf.mjs talk list . demo --open
+ *   control  stop <root> <slug> [--after current|step|plan|implement|verify|review] [--json]
+ *             ask the run of <slug> to stop: after the agent that runs now (current, the
+ *             default), after the next step that ends (step: step done tells the implement
+ *             agent to end), or after the next stage of that name that ends
+ *             Example: wf.mjs control stop . demo --after step
+ *   control  clear <root> <slug> [--force] [--json]
+ *             take the stop request back; one made after the last run ended stays unless --force
+ *             Example: wf.mjs control clear . demo
+ *   control  show <root> <slug> [--json]
+ *             the stop request of <slug>, and where it lands
+ *             Example: wf.mjs control show . demo
  *   step     start <root> <slug> <slice> <n> [--title t]
  *             Example: wf.mjs step start . demo api 3 --title "add the route"
  *   step     done <root> <slug> <slice> <n> (--sha s|HEAD | --no-change)
@@ -712,7 +736,7 @@ import { SKILL_DIR } from '../lib/skill-dir.mjs';
 import { putChecked } from '../lib/record-put.mjs';
 import { driveArgs, driveScript, readRun } from '../lib/drive.mjs';
 import { runView, runViewLines, sandboxProblem, sessionThread, startDetached } from '../lib/drive-detach.mjs';
-import { appendJournalLine, appendRunEnd, journalPath } from './yolo-watch.mjs';
+import { STOP_AFTER, appendJournalLine, appendRunEnd, journalPath, stopCheck, stopLands, writeControl } from './yolo-watch.mjs';
 import { WAIT_CALL_MS, heldQuestions, waitForAnswers } from '../lib/decide-wait.mjs';
 import { parseJsonLines, stageOf } from '../lib/live-events.mjs';
 import { checkConsent, grantConsent, revokeConsent } from '../lib/consent.mjs';
@@ -743,7 +767,8 @@ import { DRAFT_DIR, INDEX_HEADER, INDEX_NAME, clearKept, docText, draftPath, dra
 import { parse as parseYaml, stringify as stringifyYaml } from '../lib/yaml.mjs';
 import { PATH_FORMS, getPath } from '../lib/record-path.mjs';
 import { SLICE_STAGES, SMALL_STAGE_FILES, STAGE_FILES, stageDone } from '../lib/stage-done.mjs';
-import { addSlice, carrySlice, dropSlice, moveSlice } from '../lib/slice-ops.mjs';
+import { addSlice, carrySlice, dropSlice, mergeSlices, moveSlice, splitSlice } from '../lib/slice-ops.mjs';
+import { limitsOf } from '../lib/limits.mjs';
 import { placeAndApply } from '../lib/issue-apply.mjs';
 import { placementLine } from '../lib/issue-place.mjs';
 import { BOARD_KINDS, PROSE_KINDS, boardAdd, boardAdopt, boardApply, boardDigest, boardFieldArgs, boardMove, boardProse, boardRegroup, boardRemove, boardRender, boardSet } from '../lib/board-ops.mjs';
@@ -815,8 +840,9 @@ function flags(argv) {
         const { value } = undoGitBashPath(argv[(i += 1)]);
         const warn = unrepairedWarning(`--${name}`, value);
         if (warn) process.stderr.write(warn);
-        // `--mode` may repeat (requires): the values join with a comma.
-        opt[name] = name === 'mode' && opt.mode != null ? `${opt.mode},${value}` : value;
+        // `--mode` may repeat (requires): the values join with a comma. `--part` repeats (slice
+        // split), one part each: the values join with a semicolon.
+        opt[name] = name === 'mode' && opt.mode != null ? `${opt.mode},${value}` : name === 'part' && opt.part != null ? `${opt.part};${value}` : value;
       }
     } else pos.push(fromGitBashPath(a));
   }
@@ -1155,7 +1181,7 @@ export function runDecide(pos, opt) {
         const doc = JSON.parse(readFileSync(resolve(opt.file), 'utf8'));
         const list = Array.isArray(doc) ? doc : doc.answers ?? doc.decisions ?? [];
         if (!list.length) throw redo(`decide add: ${opt.file} holds no answers`, 'Write the answers into the file as a JSON array, or give one answer with --answer, then run decide add again.');
-        const rows = list.map((a) => decideAdd(dir, a, { by: opt.by ?? null, stage: opt.stage ?? null }));
+        const rows = list.map((a) => decideAdd(dir, a, { by: opt.by ?? null, stage: opt.stage ?? null, kind: opt.kind ?? null, cls: opt.class ?? null }));
         out(opt.json ? rows : rows.flatMap((r) => [decisionLine(r.entry), ...r.superseded.map((id) => `supersedes ${id}`), ...(r.settled ? [`settled ${r.entry.key}`] : [])]).join('\n'));
         return 0;
       }
@@ -1421,7 +1447,14 @@ export function runStep(pos, opt) {
     // Outside a driver nothing else ends the run: a finished implement is done, not a dead run.
     writeProgress(dir, { slice, step: null, ...(readProgress(dir)?.driver ? {} : { status: 'done' }) });
   }
-  out(opt.json ? line : `${line.event} ${slice}${line.step ? ` step ${line.step}` : ''}${line.sha ? ` ${line.sha.slice(0, 8)}` : ''}${line.noChange ? ' (no change)' : ''}${line.kind && line.kind !== 'fail' ? ` (${line.kind})` : ''}`);
+  // A stop request of the person (control stop --after step or current) ends the stage after this
+  // step: the agent reads `next` and returns, and the driver ends the run cleanly.
+  let stop = null;
+  if (verb === 'done') {
+    try { const c = stopCheck(projectRoot, slug); if (c.stop && ['step', 'current'].includes(c.request?.after ?? 'current')) stop = c.reason; } catch { stop = null; }
+  }
+  const stopNext = stop ? `stop requested (${stop}): end the stage now. Record where it stands, do not start step ${Number(line.step) + 1}, and return.` : null;
+  out(opt.json ? { ...line, ...(stopNext ? { next: stopNext } : {}) } : [`${line.event} ${slice}${line.step ? ` step ${line.step}` : ''}${line.sha ? ` ${line.sha.slice(0, 8)}` : ''}${line.noChange ? ' (no change)' : ''}${line.kind && line.kind !== 'fail' ? ` (${line.kind})` : ''}`, ...(stopNext ? [`next: ${stopNext}`] : [])].join('\n'));
   return 0;
 }
 
@@ -2330,7 +2363,7 @@ function backfillProject(projectRoot) {
 
 // The commands that change the state of a workflow: [root, slug] of each, for the GitHub layer.
 const CHANGES = {
-  record: ['put', 'set', 'edit', 'stage-done', 'migrate'], slice: ['drop', 'move', 'add', 'carry'], issue: ['place'], board: ['add', 'move', 'regroup', 'remove', 'apply', 'set', 'prose', 'render', 'adopt'], page: ['put'], progress: ['set'], decide: ['add', 'hold'], findings: ['add', 'set'], ship: ['ready', 'finish'], step: ['start', 'done', 'complete', 'stop'], design: ['approve', 'migrate'],
+  record: ['put', 'set', 'edit', 'stage-done', 'migrate'], slice: ['drop', 'move', 'add', 'carry', 'split', 'merge'], issue: ['place'], board: ['add', 'move', 'regroup', 'remove', 'apply', 'set', 'prose', 'render', 'adopt'], page: ['put'], progress: ['set'], decide: ['add', 'hold'], findings: ['add', 'set'], ship: ['ready', 'finish'], step: ['start', 'done', 'complete', 'stop'], design: ['approve', 'migrate'],
 };
 function changed(cmd, pos, opt = {}) {
   if (cmd === 'close' || (cmd === 'modernize' && !opt.check)) return pos[0] && pos[1] ? [pos[0], pos[1]] : null;
@@ -2619,6 +2652,20 @@ async function runMain(cmd, pos, opt) {
       case 'decide': return runDecide(pos, opt);
       case 'talk': return runTalk(pos, opt, { out, journal: talkJournal, command: pos.slice(3) });
       case 'step': return runStep(pos, opt);
+      case 'control': {
+        const [action, root, slug] = pos;
+        if (!['stop', 'clear', 'show'].includes(action) || !root || !slug) throw usage('control: <stop|clear|show> <root> <slug> are required');
+        const projectRoot = resolve(root);
+        if (!existsSync(join(wfRoot(projectRoot), slug))) throw noFolder(`control: no workflow folder ${join(wfRoot(projectRoot), slug)}`, root);
+        const after = opt.after ?? 'current';
+        if (action === 'stop' && !STOP_AFTER.includes(after)) throw refuse(`control stop: --after must be one of ${STOP_AFTER.join(', ')}`, agentFix(`Run control stop again with --after one of ${STOP_AFTER.join(', ')}.`));
+        const v = writeControl(projectRoot, slug, action, action === 'stop' ? [after] : opt.force ? ['force'] : []);
+        const lands = action !== 'clear' && v?.action === 'stop' ? stopLands(v.after) : null;
+        out(opt.json ? { request: v ?? null, ...(lands ? { lands } : {}) } : action === 'clear'
+          ? (v ? `kept the request made after the run ended: ${JSON.stringify(v)} (--force takes it back)` : 'no stop request')
+          : v ? `${action === 'stop' ? 'stop requested' : 'stop request'}: after ${v.after} (${v.requestedAt})\n${lands}` : 'no stop request');
+        return 0;
+      }
       case 'profile': return runProfile(pos, opt);
       case 'findings': return runFindings(pos, opt);
       case 'record': return runRecord(pos, opt);
@@ -2788,10 +2835,33 @@ async function runMain(cmd, pos, opt) {
       }
       case 'slice': {
         const [verb, root, slug, slice] = pos;
-        if (!['drop', 'move', 'add', 'carry'].includes(verb) || !root || !slug || !slice) throw usage('slice: <drop|move|add|carry> <root> <slug> <slice> are required');
+        if (!['drop', 'move', 'add', 'carry', 'split', 'merge'].includes(verb) || !root || !slug || !slice) throw usage('slice: <drop|move|add|carry|split|merge> <root> <slug> <slice> are required');
         const projectRoot = resolve(root);
         const dir = join(wfRoot(projectRoot), slug);
         if (!existsSync(dir)) throw noFolder(`slice: no workflow folder ${dir}`, root);
+        if (verb === 'split' || verb === 'merge') {
+          let r;
+          try {
+            if (verb === 'split') {
+              const parts = String(opt.part ?? '').split(';').map((p) => p.trim()).filter(Boolean).map((p) => {
+                const at = p.indexOf(':');
+                return at < 1 ? { slice: p, acs: '' } : { slice: p.slice(0, at).trim(), acs: p.slice(at + 1) };
+              });
+              r = splitSlice(dir, slice, { parts, decision: opt.decision, reason: opt.reason }, { decisions: decisionsOf(dir) });
+            } else {
+              r = mergeSlices(dir, slice, opt.from, { decision: opt.decision, reason: opt.reason, maxSteps: limitsOf(projectRoot).maxSteps }, { decisions: decisionsOf(dir) });
+            }
+          } catch (e) {
+            throw refuse(`slice ${verb}: ${e.message}`, agentFix(verb === 'split'
+              ? 'Record the cut as a decision first (decide add), then run the command again with --decision <its id> and --part "<slice>:<criteria>;<new slice>:<criteria>"; the part named after the slice keeps its slug.'
+              : 'Record the merge as a decision first (decide add), then run the command again with --decision <its id> and --from <the slices to merge>.'));
+          }
+          await reconcileIndex(projectRoot);
+          out(opt.json ? r : verb === 'split'
+            ? `split ${slice} of ${slug} into ${r.parts.map((p) => `${p.slice} (${p.acs} criteria${p.estimatedSteps ? `, ${p.estimatedSteps} steps` : ''})`).join(', ')}${r.decisions.moved.length + r.decisions.copied.length ? `; decisions moved ${r.decisions.moved.length}, copied ${r.decisions.copied.length}` : ''}`
+            : `merged ${r.merged.join(', ')} into ${slice} of ${slug}${r.estimatedSteps ? ` (${r.estimatedSteps} steps)` : ''}${r.decisions.moved.length ? `; decisions moved ${r.decisions.moved.length}` : ''}`);
+          return 0;
+        }
         if (verb === 'add' || verb === 'carry') {
           let r;
           try {

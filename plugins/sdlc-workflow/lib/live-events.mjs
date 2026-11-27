@@ -256,9 +256,17 @@ export function resumeCommand(slug) {
  * `activityMs` is the newest write to the running agent's own transcript, when
  * the caller found it. With it, the agent is stale after AGENT_SILENT_MS of
  * transcript silence, and the journal cadence does not count.
+ *
+ * `lifeMs` is the newest write of the other records of the run (steps.jsonl, the progress
+ * record): a step that a stage records is a sign of life as well. `jobAlive`: a job of the run
+ * still runs, so the run is not silent, whatever the files say.
+ *
+ * Silence after an agent-end is only a guess that the run ended: it is said once as `quiet`, and
+ * the watch goes on. Only the end line of the driver (run-end) ends a run.
  */
-export function judgeSilence(slug, st, nowMs, watchStartMs, activityMs = null) {
+export function judgeSilence(slug, st, nowMs, watchStartMs, activityMs = null, { lifeMs = null, jobAlive = false } = {}) {
   if (st.ended || st.lastLineAt === null) return [];
+  if (jobAlive) return [];
   // A re-arm resets `ended` for a relaunch; a run whose newest line is its end is silent by design.
   if (st.newest && st.newest.event === 'run-end') return [];
   // A stage agent that waits for an answer in `decide wait` is silent by design, until the end
@@ -266,17 +274,19 @@ export function judgeSilence(slug, st, nowMs, watchStartMs, activityMs = null) {
   if (st.newest && st.newest.event === 'waiting' && !(Number.isFinite(st.newest.until) && nowMs > st.newest.until + WAIT_END_GRACE_MS)) return [];
   const byTranscript = Number.isFinite(activityMs) && st.newest && st.newest.event === 'agent-start';
   // The start of the watch bounds both signals: a watch never calls a run stale for silence before it started.
-  const since = byTranscript ? Math.max(st.lastLineAt, activityMs, watchStartMs) : Math.max(st.lastLineAt, watchStartMs);
+  const life = Number.isFinite(lifeMs) ? lifeMs : 0;
+  const since = byTranscript ? Math.max(st.lastLineAt, activityMs, watchStartMs, life) : Math.max(st.lastLineAt, watchStartMs, life);
   const silentMs = nowMs - since;
   const limit = byTranscript ? AGENT_SILENT_MS : liveLimitMs(st);
   if (silentMs <= limit) return [];
   if (st.newest && ENDS.includes(st.newest.event)) {
-    st.ended = true;
-    // The run's end was already said: the wave driver writes agent lines after its
-    // run-end, and a re-arm resets `ended`. The same run does not end twice.
-    if (st.run && st.endedRun === st.run) return [];
-    st.endedRun = st.run;
-    return [{ event: 'run-end', slug, run: st.run, stoppedAt: null, inferred: true, lastAgent: st.newest.agent, lastStatus: st.newest.status, at: iso(nowMs) }];
+    // Every agent returned and the driver wrote no end: the driver may be between two agents, or
+    // gone. Say it once for this silence; the end line of the driver, or the gone driver process
+    // (--driver-pid), ends the watch.
+    const quietKey = `quiet:${st.lastLineAt}`;
+    if (st.staleFor === quietKey) return [];
+    st.staleFor = quietKey;
+    return [{ event: 'quiet', slug, run: st.run, inferred: true, lastAgent: st.newest.agent, lastStatus: st.newest.status, silentMinutes: Math.round(silentMs / 60000), limitMinutes: Math.round(limit / 60000), at: iso(nowMs) }];
   }
   const key = String(st.lastLineAt);
   if (st.staleFor === key) return [];

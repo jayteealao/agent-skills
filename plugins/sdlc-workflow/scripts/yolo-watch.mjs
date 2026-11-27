@@ -50,9 +50,12 @@
  *   file-change events, so it works on Windows.
  * - The offsets persist in .ai/run/<slug>/.watch-state.json. A re-armed
  *   watch starts where the last watch stopped and misses no event.
- * - The script exits by itself after the run-end event: a run-end journal line,
- *   or a journal whose newest line is an agent-end and that stays silent past
- *   the liveness limit (_liveness.md, the staleness rule).
+ * - The script exits by itself after the run-end event: the run-end line of the driver, or
+ *   (with --driver-pid) a driver process that is gone. A journal whose newest line is an
+ *   agent-end and that stays silent past the liveness limit gives one `quiet` event, a guess,
+ *   and the watch goes on (_liveness.md, the staleness rule).
+ * - Silence is judged on the newest sign of life: the journal, the transcript of the running
+ *   agent, steps.jsonl and the progress record. A job of the run that still runs is life.
  * - A restart keeps the first watch's start (keptWatchFrom), so the silence of a
  *   live run counts from its last line, not from the 30-minute Monitor restart.
  * - Each stage-start and commit event also appends one line to commentary.md.
@@ -86,6 +89,7 @@ import { clearStopRequest, lastRunEndAt, madeAfterLastRun, madeForGoneRun } from
 import { STAGE_SUITES, readProfile, timeBox } from '../lib/test-profile.mjs';
 import { undoGitBashPath } from '../lib/msys.mjs';
 import { realPathOf, runDir, workflowDir } from '../lib/records-root.mjs';
+import { listJobs } from '../lib/jobs.mjs';
 import { ensureRunDir, findRunFile, oldRunFile } from '../lib/run-files.mjs';
 import { stringify } from '../lib/yaml.mjs';
 import { agentFix, defectFix, fixLines, refuse } from '../lib/fix.mjs';
@@ -103,7 +107,7 @@ const usageFix = () => agentFix('Run the command again with the arguments of its
 // The event rules live in lib/live-events.mjs, shared with the live view of the mod.
 export { STAGE_KINDS, frontmatterField, judgeSilence, liveLimitMs, stageOf };
 
-export const STOP_AFTER = Object.freeze(['current', 'plan', 'implement', 'verify', 'review']);
+export const STOP_AFTER = Object.freeze(['current', 'step', 'plan', 'implement', 'verify', 'review']);
 export { STALE_FLOOR_MS };
 export const DEFAULT_PROTECTED = Object.freeze(['PRODUCT.md', 'DESIGN.md']);
 const STATE_FILE = '.watch-state.json';
@@ -122,6 +126,21 @@ export const isNews = (ev) => Boolean(ev) && !ev.quiet && !NOT_NEWS_EVENTS.inclu
 const STATE_VERSION = 1;
 
 export const journalPath = (root, slug) => path.join(workflowDir(root, slug), '.driver-journal.jsonl');
+
+/**
+ * The other signs of life of a run, besides its journal and the transcript of its agent: the
+ * newest write of steps.jsonl and of the progress record, and whether a job of the run still runs.
+ */
+export function signsOfLife(root, slug) {
+  const dir = workflowDir(root, slug);
+  let lifeMs = null;
+  for (const name of ['steps.jsonl', 'progress.json']) {
+    try { lifeMs = Math.max(lifeMs ?? 0, statSync(path.join(dir, name)).mtimeMs); } catch { /* no such record */ }
+  }
+  let jobAlive = false;
+  try { jobAlive = listJobs(root, slug).some((j) => j.state === 'running'); } catch { jobAlive = false; }
+  return { lifeMs, jobAlive };
+}
 // The watch offsets and the stop request are run files of this machine: <root>/.ai/run/<slug>/.
 // A reader also reads the workflow folder, where an older plugin wrote them.
 export const statePath = (root, slug) => path.join(runDir(root, slug), STATE_FILE);
@@ -656,7 +675,7 @@ export function createWatcher({
       // a watch that the session started for a relaunch whose first line is still to come.
       if (emitFrom && emitFrom.seq === Infinity) st.ended = false;
       st.offset = r.offset;
-      events.push(...judgeSilence(slug, st, now(), st.watchFrom ?? watchStartMs, activityOf(st)).map((ev) => withPendingTool(ev, st)));
+      events.push(...judgeSilence(slug, st, now(), st.watchFrom ?? watchStartMs, activityOf(st), signsOfLife(root, slug)).map((ev) => withPendingTool(ev, st)));
     }
     // The number of slugs with a stage open right now. Above 1, the
     // commentary gives a stage end one line and keeps the full note for the run end.
@@ -856,7 +875,9 @@ export function writeControl(root, slug, action, rest, nowMs = Date.now()) {
 /** Where a stop request lands, in words, so a request that names the wrong point is seen at once. */
 export const stopLands = (after) => (after === 'current'
   ? 'The run ends when the agent that runs now returns: the next stage does not start. The agent that runs now is not cut short.'
-  : `The run ends after the next ${after} stage that ends from now on, before the stage that follows it. A ${after} stage that has ended already does not count.`);
+  : after === 'step'
+    ? 'The implement agent ends after the step that it ends next (step done says so), and the run ends when the agent returns. An agent of another stage ends its stage first.'
+    : `The run ends after the next ${after} stage that ends from now on, before the stage that follows it. A ${after} stage that has ended already does not count.`);
 
 /** The host process that the progress record of a workflow names, when it is of this machine; else null. */
 export function hostPidOf(root, slug, { since = 0 } = {}) {
@@ -886,6 +907,8 @@ export function stopCheck(root, slug) {
   // A request that the person made for a run whose host died is not for the run that came after it.
   if (madeForGoneRun(request, journalPath(root, slug))) return { stop: false, stale: true, request };
   if (after === 'current') return { stop: true, reason: 'stop after the current agent', request };
+  // After a step: step done tells the implement agent to end; between agents it is a stop now.
+  if (after === 'step') return { stop: true, reason: 'stop after the current step', request };
   const asked = Date.parse(request.requestedAt || '') || 0;
   const ended = readJournalFrom(journalPath(root, slug), 0).lines.some((l) => l && l.event === 'agent-end' &&
     (l.stage || String(l.agent || '').split(':')[0]) === after && (Date.parse(l.at || '') || 0) > asked);

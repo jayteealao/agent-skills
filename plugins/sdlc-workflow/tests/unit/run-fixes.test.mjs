@@ -219,3 +219,23 @@ test('step done takes a commit that was made before the start row, when it is ne
     assert.match(none.stderr, /is the commit of step 2|made no commit/);
   } finally { f.done(); }
 });
+
+test('control stop --after step: step done tells the agent to end after the step, and clear takes it back', () => {
+  const f = fixture();
+  try {
+    const stop = cli(wf, ['control', 'stop', f.root, 'demo', '--after', 'step', '--json']);
+    assert.equal(stop.status, 0, stop.stderr);
+    assert.equal(JSON.parse(stop.stdout).request.after, 'step');
+    assert.match(JSON.parse(stop.stdout).lands, /ends after the step that it ends next/);
+    assert.equal(cli(wf, ['step', 'start', f.root, 'demo', 'api', '1']).status, 0);
+    const done = cli(wf, ['step', 'done', f.root, 'demo', 'api', '1', '--no-change', '--json']);
+    assert.equal(done.status, 0, done.stderr);
+    assert.match(JSON.parse(done.stdout).next, /stop requested \(stop after the current step\): end the stage now\. .*do not start step 2/);
+    assert.match(cli(wf, ['control', 'show', f.root, 'demo']).stdout, /stop request: after step/);
+    assert.equal(cli(wf, ['control', 'clear', f.root, 'demo', '--force']).status, 0);
+    assert.equal(cli(wf, ['step', 'start', f.root, 'demo', 'api', '2']).status, 0);
+    const next = cli(wf, ['step', 'done', f.root, 'demo', 'api', '2', '--no-change', '--json']);
+    assert.equal(JSON.parse(next.stdout).next, undefined, 'no request, no stop');
+    assert.match(cli(wf, ['control', 'stop', f.root, 'demo', '--after', 'lunch']).stderr, /--after must be one of current, step/);
+  } finally { f.done(); }
+});

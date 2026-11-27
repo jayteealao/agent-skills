@@ -851,7 +851,12 @@ function rewalk(left, fresh, known, { designSettled = false } = {}) {
     const was = s.dependsOn || []
     const dependsOn = Array.isArray(r.dependsOn) ? r.dependsOn.map(String) : was
     if (dependsOn.join('\n') !== was.join('\n')) changes.push(`'${s.slice}' now runs after ${dependsOn.join(', ') || 'nothing'}`)
-    return { ...s, status, dependsOn }
+    // The size and the design gate of a slice follow the roster too: a split or a carry changes them.
+    const fresher = {}
+    for (const k of ['complexity', 'uxImpact', 'estimatedSteps']) {
+      if (r[k] != null && r[k] !== s[k]) { fresher[k] = r[k]; if (s[k] != null) changes.push(`'${s.slice}' ${k} is now ${r[k]}`) }
+    }
+    return { ...s, ...fresher, status, dependsOn }
   })
   const added = []
   const taken = []
@@ -863,7 +868,7 @@ function rewalk(left, fresh, known, { designSettled = false } = {}) {
     const depsOk = deps.every(d => at.has(d))
     if (r.fresh === true && !closed && designOk && depsOk) {
       taken.push(r.slice)
-      kept.push({ slice: r.slice, status: r.roster || 'defined', dependsOn: deps, complexity: r.complexity || null, reverifyReason: 'new-work', added: true, stages: { plan: 'todo', implement: 'todo', verify: 'todo', review: 'todo' } })
+      kept.push({ slice: r.slice, status: r.roster || 'defined', dependsOn: deps, complexity: r.complexity || null, uxImpact: r.uxImpact || null, estimatedSteps: r.estimatedSteps ?? null, reverifyReason: 'new-work', added: true, stages: { plan: 'todo', implement: 'todo', verify: 'todo', review: 'todo' } })
     } else {
       added.push({ slice: r.slice, why: closed ? `it is ${r.roster}` : r.fresh !== true ? 'it has stage records that orient did not judge' : !designOk ? (r.uxImpact ? 'its ux-impact is not none and the design is not settled' : 'its ux-impact is not set and the design is not settled') : `it depends on ${deps.filter(d => !at.has(d)).join(', ')}, which the roster does not list` })
     }
@@ -2942,7 +2947,9 @@ const ROSTER_NOW = {
           fresh: { type: 'boolean' },
           uxImpact: { type: ['string', 'null'] },
           complexity: { type: ['string', 'null'] },
-          // An issue carried into the slice after its plan: the plan is refreshed before the implement.
+          estimatedSteps: { type: ['integer', 'null'] },
+          // An issue carried into the slice, or a change of its criteria (a split, a merge), after
+          // its plan: the plan is refreshed before the implement.
           carriedAt: { type: ['string', 'null'] },
           planAt: { type: ['string', 'null'] },
         },
@@ -2974,7 +2981,7 @@ async function rosterNow(afterSlice) {
   return await spawnAgent(
     `ROSTER RE-READ for slug '${slug}', after slice '${afterSlice}'. READ-ONLY — write, edit and commit nothing.\n\n` +
     `1. Run ${wf(`${WF_CMD} status "${projectRoot}" ${slug} --json`)} once. Return its slices[] in the order of the ` +
-    `output, each as { slice, roster, dependsOn, fresh, uxImpact, complexity, carriedAt, planAt } with the values ` +
+    `output, each as { slice, roster, dependsOn, fresh, uxImpact, complexity, estimatedSteps, carriedAt, planAt } with the values ` +
     `copied as they are. Do not reorder, add or leave out an entry. When the command fails, return { slices: [] }.\n` +
     `2. Run ${wf(`${WF_CMD} talk read "${projectRoot}" ${slug} --as driver --issues --open --json`)} once. Return its ` +
     `issues[] as issues, each as { id, by, text, refs, placed, refused } copied as they are ([] when it fails).\n` +

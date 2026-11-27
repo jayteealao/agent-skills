@@ -9,6 +9,7 @@ import { appendFileSync, mkdirSync, mkdtempSync, readFileSync, rmSync, utimesSyn
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { judgeSilence } from '../../lib/live-events.mjs';
 
 const pluginRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 const SCRIPT = path.join(pluginRoot, 'scripts', 'yolo-watch.mjs');
@@ -135,7 +136,7 @@ test('a re-armed watch over a finished run is silent: a newest run-end line is n
   } finally { rmSync(root, { recursive: true, force: true }); }
 });
 
-test('a silent journal emits stale once; a silent journal that ended emits run-end', () => {
+test('a silent journal emits stale once; a silent journal after an agent-end is quiet, not an end', () => {
   const root = makeRepo();
   try {
     journal(root,
@@ -159,10 +160,30 @@ test('a silent journal emits stale once; a silent journal that ended emits run-e
     assert.deepEqual(w.pollJournals().map((e) => e.event), ['stage-end'], 'a new line ends the silence');
     assert.equal(w.allEnded(), false);
     now = T0 + 120 * 60000;
-    const end = w.pollJournals();
-    assert.deepEqual(end.map((e) => e.event), ['run-end']);
-    assert.equal(end[0].inferred, true);
+    const quiet = w.pollJournals();
+    assert.deepEqual(quiet.map((e) => e.event), ['quiet'], 'the silence is a guess, said once');
+    assert.equal(quiet[0].inferred, true);
+    assert.equal(w.allEnded(), false, 'only the end line of the driver ends the watch');
+    now = T0 + 200 * 60000;
+    assert.deepEqual(w.pollJournals(), []);
+    journal(root, { at: at(201), event: 'run-end', agent: 'driver' });
+    now = T0 + 201 * 60000;
+    assert.deepEqual(w.pollJournals().map((e) => e.event), ['run-end']);
     assert.equal(w.allEnded(), true);
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});
+
+test('a write of steps.jsonl or a running job is life: the silence of the journal is not stale', () => {
+  const root = makeRepo();
+  try {
+    journal(root, { at: at(0), seq: 1, event: 'agent-start', agent: 'implement:auth', stage: 'implement', slice: 'auth' });
+    let now = T0 + 30 * 60000;
+    const st = { lastLineAt: T0, newest: { event: 'agent-start', agent: 'implement:auth' }, ended: false, staleFor: null };
+    assert.equal(judgeSilence(SLUG, { ...st }, now, T0, null, { lifeMs: T0 + 25 * 60000 }).length, 0, 'a step recorded 5 minutes ago');
+    assert.equal(judgeSilence(SLUG, { ...st }, now, T0, null, { jobAlive: true }).length, 0, 'a job runs');
+    assert.equal(judgeSilence(SLUG, { ...st }, now, T0, null, {})[0].event, 'stale');
+    now = T0 + 60 * 60000;
+    assert.equal(judgeSilence(SLUG, { ...st }, now, T0, null, { lifeMs: T0 + 25 * 60000 })[0].event, 'stale', 'every sign is older than the limit');
   } finally { rmSync(root, { recursive: true, force: true }); }
 });
 
@@ -891,7 +912,7 @@ test('look-in: a --once watch over a stage past its time wakes the session with 
 // (the unit-end agent's own end, read-check-report). Every re-armed watch reset `ended`,
 // saw an agent-end as the newest line, and said the finished unit's run-end again.
 
-test('a run ends once: a re-armed watch does not infer the end of a run that already ended', () => {
+test('a run ends once: a re-armed watch does not end a run that already ended', () => {
   const root = makeRepo();
   const lockDir = tmpDir('locks');
   const projectsDir = tmpDir('projects');
@@ -921,12 +942,15 @@ test('a run ends once: a re-armed watch does not infer the end of a run that alr
       assert.deepEqual(b.pollJournals().filter((e) => e.event === 'run-end'), [], `no second run-end at minute ${min}`);
       b.save();
     }
-    // A relaunch with a new run id ends again.
+    // A relaunch with a new run id ends again, by its own end line; its silence alone is quiet.
     appendFileSync(W.journalPath(root, SLUG), `${JSON.stringify({ run: 'run-2', at: at(241), seq: 1, event: 'agent-start', agent: 'orient' })}\n${JSON.stringify({ run: 'run-2', at: at(242), seq: 1, event: 'agent-end', agent: 'orient', status: 'complete' })}\n`);
     now = T0 + 242 * 60000;
     const c = W.createWatcher(opts);
     c.pollJournals();
     now = T0 + 400 * 60000;
+    assert.deepEqual(c.pollJournals().map((e) => e.event), ['quiet']);
+    appendFileSync(W.journalPath(root, SLUG), `${JSON.stringify({ run: 'run-2', at: at(401), event: 'run-end', agent: 'driver' })}\n`);
+    now = T0 + 401 * 60000;
     const end = c.pollJournals();
     assert.deepEqual(end.map((e) => e.event), ['run-end']);
     assert.equal(end[0].run, 'run-2');

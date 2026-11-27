@@ -101,7 +101,12 @@ export function sliceRows(dir) {
     row.uxImpact = rec?.['ux-impact'] ?? null;
     row.complexity = (typeof s === 'string' ? null : s?.complexity) ?? rec?.complexity ?? null;
     row.fresh = SLICE_STAGES.every(([stage]) => !fms[stage]) && !v;
-    row.carriedAt = rec?.['carried-at'] ?? null;
+    // A change of the criteria or the scope (a split, a merge: scope-at) is a carry for the plan:
+    // a plan older than either is written again before the implement.
+    const changedAt = [rec?.['carried-at'], rec?.['scope-at']].filter(Boolean).map(String).sort().at(-1);
+    row.carriedAt = changedAt ?? null;
+    const estimate = (typeof s === 'string' ? null : s?.['estimated-steps']) ?? rec?.['estimated-steps'] ?? null;
+    if (estimate != null) row.estimatedSteps = estimate;
     row.planAt = fms.plan?.['updated-at'] ?? null;
     Object.assign(row, buildOf(stepRows.filter((r) => r.slice === name), fms.implement));
     if (rec?.['made-for']) row.madeFor = rec['made-for'];

@@ -287,6 +287,41 @@ export function endDecision(slugDir, id, why, { now = nowIso() } = {}) {
   });
 }
 
+/**
+ * Move the live entries scoped to slice `from` to the slices that now hold its work: a split, a
+ * merge or a move of the slice. `pick(entry)` returns the slices an entry goes to (one or more);
+ * the first takes the entry itself, and each other gets a copy with a new id and `copied-from`.
+ * Every move adds a line to the `moves:` history of the entry. Returns the ids moved and copied.
+ */
+export function rescopeDecisions(slugDir, from, pick, why, { now = nowIso() } = {}) {
+  return withStoreLock(slugDir, () => {
+    const list = readDecisions(slugDir);
+    const moved = [];
+    const copied = [];
+    let max = list.reduce((m, e) => Math.max(m, Number(String(e.id).replace(/^D-/, '')) || 0), 0);
+    for (const e of [...list]) {
+      if (!isLive(e) || cleanScope(e.scope).slice !== from) continue;
+      const to = [...new Set((pick(e) ?? []).map(String).filter(Boolean))];
+      if (!to.length || (to.length === 1 && to[0] === from)) continue;
+      const line = (slice) => ({ at: now, from, to: slice, why: String(why) });
+      const [first, ...rest] = to;
+      for (const slice of rest) {
+        max += 1;
+        const copy = { ...structuredClone(e), id: idOf(max), scope: { ...cleanScope(e.scope), slice }, 'copied-from': e.id, moves: [...(e.moves ?? []), line(slice)] };
+        list.push(copy);
+        copied.push(copy.id);
+      }
+      if (first !== from) {
+        e.scope = { ...cleanScope(e.scope), slice: first };
+        e.moves = [...(e.moves ?? []), line(first)];
+        moved.push(e.id);
+      }
+    }
+    if (moved.length || copied.length) writeDecisions(slugDir, list);
+    return { moved, copied };
+  });
+}
+
 const DONE_SLICE = ['complete', 'skipped', 'dropped'];
 
 /**

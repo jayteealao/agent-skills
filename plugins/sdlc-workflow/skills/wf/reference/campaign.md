@@ -161,6 +161,18 @@ Ask what `ask` lists, and record the answers. When an answer needs a fix, run `t
 
 Every work packet is `done` or `dropped`. Ask what `ask` lists, and record the answers. When an answer needs a fix, run `then.next` first. Then hand off per "Ship" (below), and write `tell`.
 
+## Split a work packet
+
+A started work packet is frozen to `write`: its scope changes only through its slices. When its roster is over its step budget or its slice limit (status shows `steps` against `budget`, and `openSlices`, for each work packet), the person decides how to cut it. Then move the slices that have not started to a new work packet right after it:
+
+`<cmd> split "<root>" <source-slug> <packet-key> --slices <a,b> --into <new-key> [--title t] [--reason r]`
+
+- The new work packet goes on the board after `<packet-key>`, and the work packets after it move one place down. It is written and opened as any work packet is.
+- Each slice moves with its record and the decisions scoped to it; the source keeps a dropped entry with `moved-to`.
+- A slice that stays may not wait for a slice that moves. A moved slice that waited for a slice that stays waits for nothing: the order of the work packets holds it (`crossed` names each one).
+- `split` refuses while a run of the work packet has not ended, and for a slice that has started.
+- A work packet that has not started is changed on the board instead: board move or board apply, then `campaign write`.
+
 ## Skip a work packet
 
 Only the person skips a work packet, in chat. A design that is not settled, a form that the person runs, a run that stopped or a conflict can block a work packet. When the person says to go on without it, record the skip with the person's words: `<cmd> skip "<root>" <source-slug> <packet-key> --reason "<the person's words>"`. Never skip a work packet on your own.

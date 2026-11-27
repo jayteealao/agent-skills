@@ -1,9 +1,11 @@
-// A slice leaves the roster (`wf.mjs slice drop`, `slice move`), joins it (`slice add`), or takes an
+// A slice leaves the roster (`wf.mjs slice drop`, `slice move`), joins it (`slice add`), is cut in
+// parts or joined (`slice split`, `slice merge`), or takes an
 // issue into its scope (`slice carry`). A drop or a move changes the
 // roster (03-slice.md), the slice record (03-slice-<slice>.md), the slice list of the index and
 // the selected slice. The caller rebuilds INDEX.md. A dropped slice keeps its records, so its
 // history stays readable; the drivers and the routes skip it.
 import { INDEX_NAME, frontmatterOfDoc, readDoc, setFields, writeDoc } from './records.mjs';
+import { rescopeDecisions } from './decisions.mjs';
 import { bestFirstOf } from './derive.mjs';
 import { syncRosterCopies } from './roster.mjs';
 import { DEFAULT_MAX_STEPS } from './limits.mjs';
@@ -267,4 +269,227 @@ export function carrySlice(dir, slice, input, { decisions = [] } = {}) {
   }
   syncRosterCopies(dir);
   return { slice, carried: true, at, ...(steps && est ? { estimatedSteps: est + steps } : {}) };
+}
+
+// ---------------------------------------------------------------- a slice split in parts, or two merged
+//
+// A slice over the step limit is split (`slice split`), and two small slices that share their
+// files are merged (`slice merge`). Both need a decision (`--decision <id>`): the person, or the
+// run that the person delegated to, chose the cut. Neither touches a slice whose implement has
+// started. The kept part holds the first slug, so the talk and the records of the slice still reach it.
+
+const AC_HEADING = /^##\s+Acceptance Criteria\s*$/m;
+
+/** The acceptance criteria of a slice body: each top-level `- ` item with the lines under it. */
+export function acBlocks(body) {
+  const text = String(body ?? '');
+  const m = AC_HEADING.exec(text);
+  if (!m) return { before: text, blocks: [], after: '' };
+  const start = m.index + m[0].length;
+  const next = /^##\s+\S/m.exec(text.slice(start));
+  const end = next ? start + next.index : text.length;
+  const blocks = [];
+  for (const line of text.slice(start, end).split('\n')) {
+    if (/^[-*]\s+\S/.test(line)) blocks.push([line]);
+    else if (blocks.length && line.trim()) blocks.at(-1).push(line);
+  }
+  return { before: text.slice(0, m.index), blocks: blocks.map((b) => b.join('\n')), after: text.slice(end) };
+}
+
+function withAcs(body, blocks) {
+  const text = String(body ?? '');
+  if (!AC_HEADING.test(text)) return `${text.replace(/\n*$/, '\n')}\n## Acceptance Criteria\n\n${blocks.join('\n')}\n`;
+  const { before, after } = acBlocks(text);
+  return `${before}## Acceptance Criteria\n\n${blocks.join('\n')}\n\n${after.replace(/^\n+/, '')}`.replace(/\n{3,}/g, '\n\n');
+}
+
+/** The body with its `## <heading>` section replaced by `lines` (added at the end when it has none). */
+function withSection(body, heading, lines) {
+  const text = String(body ?? '');
+  const re = new RegExp(`\\n## ${heading}\\n[\\s\\S]*?(?=\\n## |$)`);
+  const section = `\n## ${heading}\n\n${lines.join('\n')}\n`;
+  return re.test(text) ? text.replace(re, section) : `${text.replace(/\n*$/, '\n')}${section}`;
+}
+
+const escapeRe = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+/** The criteria that `ids` name: 1-based positions, or `AC-<n>` labels that the text of a criterion carries. */
+function pickAcs(blocks, ids, part) {
+  return ids.map((id) => {
+    const i = /^\d+$/.test(id) ? Number(id) - 1 : blocks.findIndex((b) => new RegExp(`\\b${escapeRe(id)}\\b`, 'i').test(b));
+    if (i < 0 || i >= blocks.length) throw new Error(`slice split: ${part}:${id} names no acceptance criterion; the slice has ${blocks.length} (give 1 to ${blocks.length}, or an AC-<n> label)`);
+    return i;
+  });
+}
+
+const estimateOf = (e) => (Number.isInteger(Number(e?.['estimated-steps'])) && Number(e['estimated-steps']) > 0 ? Number(e['estimated-steps']) : null);
+const dependsOf = (s) => (Array.isArray(s?.['depends-on']) ? s['depends-on'] : []);
+
+function notStarted(dir, slice, entry, what) {
+  if (RETIRED.has(String(entry.status)) || FINISHED.has(String(entry.status))) throw new Error(`${what}: ${slice} is ${entry.status}`);
+  if (frontmatterOfDoc(dir, `05-implement-${slice}.md`) || String(entry.status) === 'in-progress') throw new Error(`${what}: ${slice} has started its implement; a started slice is not cut`);
+}
+
+/** Point the `depends-on` of each slice record that names a slice of `map` at its new slice. */
+function repointRecords(dir, roster, map) {
+  for (const s of roster) {
+    if (map.has(s.slug) || !dependsOf(s).some((x) => map.has(x))) continue;
+    const fm = frontmatterOfDoc(dir, sliceRecord(s.slug));
+    if (fm) setFields(dir, sliceRecord(s.slug), { 'depends-on': [...new Set(dependsOf(fm).map((x) => map.get(x) ?? x))] });
+  }
+}
+
+/**
+ * Split `slice` into parts. `parts` is `[{ slice, acs: [ids] }]`: the part named `slice` keeps
+ * its slug, and each criterion goes to one part. Each part depends on the part before it, so
+ * the slices that depended on `slice` depend on the last part. The estimate is divided by the
+ * share of criteria. Decisions scoped to the slice go to the part whose criteria they name
+ * (`AC-<n>`), else to every part.
+ */
+export function splitSlice(dir, slice, input, { decisions = [] } = {}) {
+  personGuard(decisions, input.decision);
+  const { roster, entry } = entryOf(dir, slice);
+  notStarted(dir, slice, entry, 'slice split');
+  const rec = readDoc(dir, sliceRecord(slice));
+  if (!rec?.frontmatter) throw new Error(`slice split: ${slice} has no slice record`);
+  const specs = (Array.isArray(input.parts) ? input.parts : []).map((p) => ({ slice: String(p.slice ?? '').trim(), acs: listOf(p.acs) }));
+  if (specs.length < 2) throw new Error('slice split: give two parts or more, as --part "<slice>:<ac>,<ac>;<new>:<ac>"');
+  const kept = specs.findIndex((p) => p.slice === slice);
+  if (kept < 0) throw new Error(`slice split: one part keeps the slug ${slice}: give --part ${slice}:<its criteria>`);
+  specs.unshift(...specs.splice(kept, 1));
+  const names = new Set(roster.map((s) => s.slug));
+  for (const p of specs.slice(1)) {
+    if (!SLICE_NAME.test(p.slice)) throw new Error(`slice split: ${p.slice} must be lower-case words joined by -`);
+    if (names.has(p.slice)) throw new Error(`slice split: the roster has a slice ${p.slice} already`);
+  }
+  if (new Set(specs.map((p) => p.slice)).size !== specs.length) throw new Error('slice split: two parts have the same slug');
+  const { blocks } = acBlocks(rec.body);
+  if (!blocks.length) throw new Error(`slice split: ${slice} has no ## Acceptance Criteria to divide`);
+  const owner = new Map();
+  for (const p of specs) {
+    if (!p.acs.length) throw new Error(`slice split: the part ${p.slice} has no criteria; give it as <slice>:<ac>,<ac>`);
+    for (const i of pickAcs(blocks, p.acs, p.slice)) {
+      if (owner.has(i)) throw new Error(`slice split: criterion ${i + 1} is in ${owner.get(i)} and in ${p.slice}; each criterion goes to one part`);
+      owner.set(i, p.slice);
+    }
+  }
+  const missing = blocks.map((_, i) => i).filter((i) => !owner.has(i));
+  if (missing.length) throw new Error(`slice split: criteria ${missing.map((i) => i + 1).join(', ')} are in no part; each criterion goes to one part`);
+  const reason = String(input.reason ?? '').trim() || `by the decision ${input.decision}`;
+  const at = nowIso();
+  const est = estimateOf(entry);
+  const acsOf = (p) => blocks.filter((_, i) => owner.get(i) === p.slice);
+  const estOf = (p) => (est ? Math.max(1, Math.round((est * acsOf(p).length) / blocks.length)) : null);
+  const deps = dependsOf(entry);
+  const partNames = specs.map((p) => p.slice);
+  const last = partNames.at(-1);
+  const depsOf = (k) => (k === 0 ? deps : [partNames[k - 1]]);
+  specs.forEach((p, k) => {
+    const e = estOf(p);
+    const fm = {
+      ...rec.frontmatter, 'slice-slug': p.slice, status: 'defined', 'depends-on': depsOf(k), 'updated-at': at, 'scope-at': at,
+      ...(e ? { 'estimated-steps': e, complexity: complexityOf(e) } : {}),
+      ...(k === 0 ? { 'split-into': partNames.slice(1) } : { 'split-from': slice, 'created-at': at }),
+      refs: { ...(rec.frontmatter.refs ?? {}), plan: `04-plan-${p.slice}.md`, implement: `05-implement-${p.slice}.md` },
+      'next-command': 'wf-plan', 'next-invocation': `/wf plan ${rec.frontmatter.slug ?? '<slug>'} ${p.slice}`,
+    };
+    let body = withAcs(rec.body, acsOf(p));
+    if (k > 0) {
+      for (const f of ['carried-issues', 'carried-at', 'split-into', 'placement', 'decision', 'merged-from']) delete fm[f];
+      body = body.replace(/^# Slice: .*$/m, `# Slice: ${p.slice}`).replace(/\n## Carried Issues\n[\s\S]*?(?=\n## |$)/, '\n');
+    }
+    body = withSection(body, 'Dependencies on Other Slices', depsOf(k).length ? depsOf(k).map((s) => `- ${s}`) : ['None']);
+    writeDoc(dir, sliceRecord(p.slice), { frontmatter: fm, body });
+  });
+  const rows = [];
+  for (const s of roster) {
+    if (s.slug !== slice) {
+      rows.push(dependsOf(s).includes(slice) ? { ...s, 'depends-on': [...new Set(dependsOf(s).map((x) => (x === slice ? last : x)))] } : s);
+      continue;
+    }
+    specs.forEach((p, k) => {
+      const e = estOf(p);
+      const base = k === 0 ? s : { slug: p.slice, status: 'defined', 'split-from': slice };
+      rows.push({ ...base, 'depends-on': depsOf(k), ...(e ? { 'estimated-steps': e, complexity: complexityOf(e) } : {}) });
+    });
+  }
+  setFields(dir, ROSTER, { slices: rows });
+  repointRecords(dir, roster, new Map([[slice, last]]));
+  rosterRevision(dir, 'split', `slice split: ${slice} into ${partNames.join(', ')}: ${reason}`, partNames.join(','));
+  const index = frontmatterOfDoc(dir, INDEX_NAME) ?? {};
+  const listed = Array.isArray(index['workflow-files']) ? index['workflow-files'] : null;
+  const more = listed ? partNames.slice(1).map(sliceRecord).filter((n) => !listed.includes(n)) : [];
+  if (more.length) setFields(dir, INDEX_NAME, { 'workflow-files': [...listed, ...more] });
+  const labels = (e) => [...String(`${e.question ?? ''} ${e.answer ?? ''}`).matchAll(/\bAC-\d+\b/gi)].map((m) => m[0]);
+  const rescoped = rescopeDecisions(dir, slice, (e) => {
+    const named = labels(e);
+    const hits = named.length ? specs.filter((p) => named.some((l) => new RegExp(`\\b${l}\\b`, 'i').test(acsOf(p).join('\n')))) : [];
+    return (hits.length ? hits : specs).map((p) => p.slice);
+  }, `slice split: ${slice} into ${partNames.join(', ')}`);
+  syncRosterCopies(dir);
+  return { slice, parts: specs.map((p) => ({ slice: p.slice, acs: acsOf(p).length, ...(estOf(p) ? { estimatedSteps: estOf(p) } : {}) })), decisions: rescoped };
+}
+
+/**
+ * Merge the slices `from` into `into`: the criteria, the carried issues and the estimates join in
+ * `into`; each slice of `from` is dropped with "merged into <into>"; the slices that depended on
+ * them depend on `into`; their decisions move to it. Refused when the joined estimate passes
+ * the step limit.
+ */
+export function mergeSlices(dir, into, from, input, { decisions = [] } = {}) {
+  personGuard(decisions, input.decision);
+  const others = listOf(from).filter((s) => s !== into);
+  if (!others.length) throw new Error('slice merge: give the slices to merge with --from, other than the one they merge into');
+  const roster = rosterOf(dir);
+  const all = [into, ...others];
+  const entries = all.map((s) => {
+    const e = roster.find((x) => x.slug === s);
+    if (!e) throw new Error(`slice merge: ${s} is not in the roster`);
+    notStarted(dir, s, e, 'slice merge');
+    return e;
+  });
+  const recs = all.map((s) => {
+    const r = readDoc(dir, sliceRecord(s));
+    if (!r?.frontmatter) throw new Error(`slice merge: ${s} has no slice record`);
+    return r;
+  });
+  const max = Number(input.maxSteps) > 0 ? Number(input.maxSteps) : DEFAULT_MAX_STEPS;
+  const ests = entries.map(estimateOf);
+  const est = ests.every(Boolean) ? ests.reduce((a, b) => a + b, 0) : null;
+  if (est && est > max) throw new Error(`slice merge: the merged slice comes to ${est} steps; a slice has ${max} steps or fewer (slices.maxSteps)`);
+  const reason = String(input.reason ?? '').trim() || `by the decision ${input.decision}`;
+  const at = nowIso();
+  const gone = new Map(others.map((s) => [s, into]));
+  const deps = [...new Set(entries.flatMap(dependsOf).filter((s) => s !== into && !gone.has(s)))];
+  const carried = recs.flatMap((r) => (Array.isArray(r.frontmatter['carried-issues']) ? r.frontmatter['carried-issues'] : []));
+  const [main] = recs;
+  let body = withAcs(main.body, recs.flatMap((r) => acBlocks(r.body).blocks));
+  body = withSection(body, 'Dependencies on Other Slices', deps.length ? deps.map((s) => `- ${s}`) : ['None']);
+  if (carried.length) body = withSection(body, 'Carried Issues', ['Issues that a run placed into this slice. They are part of its scope, and its plan covers each one.', '', ...carried.map((c) => `- ${c.issue}: ${c.text}`)]);
+  writeDoc(dir, sliceRecord(into), {
+    frontmatter: {
+      ...main.frontmatter, 'depends-on': deps, 'updated-at': at, 'scope-at': at, 'merged-from': [...(main.frontmatter['merged-from'] ?? []), ...others],
+      ...(carried.length ? { 'carried-issues': carried, 'carried-at': at } : {}),
+      ...(est ? { 'estimated-steps': est, complexity: complexityOf(est) } : {}),
+    },
+    body,
+  });
+  const rows = roster.map((s) => {
+    if (s.slug === into) return { ...s, 'depends-on': deps, ...(est ? { 'estimated-steps': est, complexity: complexityOf(est) } : {}) };
+    if (gone.has(s.slug)) return { ...s, status: 'dropped', 'drop-reason': `merged into ${into}`, 'merged-into': into };
+    return dependsOf(s).some((x) => gone.has(x)) ? { ...s, 'depends-on': [...new Set(dependsOf(s).map((x) => gone.get(x) ?? x))] } : s;
+  });
+  setFields(dir, ROSTER, { slices: rows });
+  for (const s of others) setFields(dir, sliceRecord(s), { status: 'dropped', 'drop-reason': `merged into ${into}`, 'merged-into': into });
+  repointRecords(dir, roster.filter((s) => s.slug !== into), gone);
+  const index = frontmatterOfDoc(dir, INDEX_NAME) ?? {};
+  const fields = {};
+  if (gone.has(index['selected-slice'])) fields['selected-slice'] = into;
+  for (const s of others) Object.assign(fields, routeRepair({ ...index, ...fields }, s, rosterOf(dir)));
+  if (Object.keys(fields).length) setFields(dir, INDEX_NAME, fields);
+  rosterRevision(dir, 'merge', `slice merge: ${others.join(', ')} into ${into}: ${reason}`, all.join(','));
+  const moved = [];
+  for (const s of others) moved.push(...rescopeDecisions(dir, s, () => [into], `slice merge: ${s} into ${into}`).moved);
+  syncRosterCopies(dir);
+  return { slice: into, merged: others, ...(est ? { estimatedSteps: est } : {}), decisions: { moved } };
 }
