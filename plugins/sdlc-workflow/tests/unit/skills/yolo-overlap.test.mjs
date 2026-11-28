@@ -281,3 +281,26 @@ test('a merge conflict of the side branch stops the run and names the branch', a
   assert.match(r.outcome.reason, /side\/demo\/b .* a conflict in src\/x\.js/);
   assert.equal(r.count('verify:b'), 0);
 });
+
+test('the verify at the tip after a verify that failed behind starts from its evidence, and every verify caps its whole runs', async () => {
+  const r = await run([slice('a'), slice('b')], {
+    answer: (c) => (c.label === 'verify:a' && c.n === 1 ? { stage: 'verify', slice: 'a', status: 'hard-stop', artifactPath: '/repo/06-verify-a.md', terminal: FAIL, residual: [{ ac: 'AC-2', reason: 'the total is off by one' }], hardStopReason: 'AC-2 fails' } : undefined),
+  });
+  assert.equal(r.outcome.ok, true, r.outcome.reason);
+  const second = r.prompt('verify:a', 2);
+  assert.match(second, /CARRIED EVIDENCE: an earlier verify of this slice ran at commit [0-9a-f]{8} and wrote \/repo\/06-verify-a\.md \(result fail\)/);
+  assert.match(second, /AC-2: the total is off by one/);
+  assert.match(second, /git diff --name-only [0-9a-f]{8}\.\.HEAD/);
+  assert.doesNotMatch(r.prompt('verify:a', 1), /CARRIED EVIDENCE/);
+  for (const p of [r.prompt('verify:a', 1), second, r.prompt('verify:b')]) assert.match(p, /TEST RUNS: run the whole test suite of the project at most twice in this verify/);
+});
+
+test('a slice whose next slice is already implemented (a resumed run) is verified at the tip, not behind', async () => {
+  const BUILT = { plan: 'done', implement: 'done', verify: 'todo', review: 'n-a' };
+  // a is built in this run; b was built by the run before, so nothing would build beside a's verify.
+  const r = await run([slice('a'), slice('b', { stages: BUILT })]);
+  assert.equal(r.outcome.ok, true, r.outcome.reason);
+  assert.equal(r.count('verify:a'), 1);
+  assert.doesNotMatch(r.prompt('verify:a'), /VERIFY BEHIND/);
+  assert.equal(r.count('merge:a'), 0);
+});

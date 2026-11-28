@@ -2086,6 +2086,23 @@ async function runStage(stage, sliceArg, idx, extra = {}) {
         `stands, produce the evidence INSTEAD of the deferral. A deferral still carrying no probe after this ` +
         `round will hard-stop the run.`
       : ''
+  // The whole suite runs at most twice in one verify: once before the fixes, once after the last.
+  const runsClause = stage === 'verify'
+    ? ` TEST RUNS: run the whole test suite of the project at most twice in this verify: once before your ` +
+      `fixes, and once after your last fix. Between them, rerun only the tests that failed and the tests of the ` +
+      `files a fix changed, all the fixes of a round in one rerun. A third whole run needs a reason that you ` +
+      `write in the verify record.`
+    : ''
+  // A verify at the tip after an earlier verify of the slice failed: it starts from that verify's evidence.
+  const c = stage === 'verify' && extra.carry && extra.carry.sha ? extra.carry : null
+  const carryClause = c
+    ? ` CARRIED EVIDENCE: an earlier verify of this slice ran at commit ${c.sha}` +
+      `${c.artifact ? ` and wrote ${c.artifact}` : ''}${c.result ? ` (result ${c.result})` : ''}` +
+      `${(c.failed || []).length ? `; what did not pass there: ${c.failed.join('; ')}` : ''}. Read that record first. ` +
+      `Its passing checks stand for the code that did not change since ${c.sha}. Run the checks that failed there, ` +
+      `and the tests of the files that changed since (\`git diff --name-only ${c.sha}..HEAD\`), not the whole ` +
+      `suite from scratch. The one whole run after your last fix covers the rest.`
+    : ''
   // Open prior deferrals: `defer check` first, then a fresh probe only where the check found a change.
   const deferCmd = `${WF_CMD} defer check "${projectRoot}" ${slug}${sliceArg ? ` --next ${sliceArg}` : ''}`
   const reChallenge = stage === 'verify' ? reChallengeClause(idx.priorDeferrals, deferCmd) : ''
@@ -2220,7 +2237,7 @@ async function runStage(stage, sliceArg, idx, extra = {}) {
     questionContract(stage) + (DELEGATE ? delegateClause(stage) : '') + answeredClause(extra.answered, stage, sliceArg) +
     (stage === 'verify' ? settledItemsClause(sliceArg) : '') +
     (stage === 'verify' && DELEGATE && (extra.round || 1) >= 2 ? delegateAcceptClause(sliceArg, undefined, idx.reviewScope) : '') +
-    `${roundClause}${probeClause}${reChallenge}${scopeHint}${refreshClause}${aheadClause}${scanClause}${behindClause}` + steer('writer', sliceArg) + handoffClause(stage, sliceArg) + talkClause(stage, sliceArg) +
+    `${roundClause}${probeClause}${reChallenge}${scopeHint}${refreshClause}${aheadClause}${scanClause}${behindClause}${runsClause}${carryClause}` + steer('writer', sliceArg) + handoffClause(stage, sliceArg) + talkClause(stage, sliceArg) +
     (extra.stopCheck === true ? stopCheck() : '') +
     requiresClause(`${referenceRoot}/${stage}.md`) + `\n\n` +
     `Operating rules:\n` +
@@ -2384,7 +2401,7 @@ async function driveVerify(sliceArg, idx, extra = {}) {
     // Round 1 of an xs or s slice is the verify that its implement agent ran in the same session.
     last = round === 1 && extra.first
       ? { stage: 'verify', slice: sliceArg, artifactPath: '', ...extra.first }
-      : await runStage('verify', sliceArg, idx, { round, probeAcs: probeCorrection, stopCheck: round === 1 && !probeCorrection, answered: extra.answered || null })
+      : await runStage('verify', sliceArg, idx, { round, probeAcs: probeCorrection, stopCheck: round === 1 && !probeCorrection, answered: extra.answered || null, ...(extra.carry ? { carry: extra.carry } : {}) })
     // A null return = the verify subagent was skipped or died on a terminal API
     // error after retries (not a quality failure). Stop cleanly; resume retries it.
     if (!last) return { stage: 'verify', slice: sliceArg, status: 'hard-stop', artifactPath: '', terminal: {}, transient: true, hardStopReason: 'verify did not return (subagent skipped or hit a transient API error) — re-run to retry this slice; resume skips completed stages' }
@@ -3242,7 +3259,7 @@ async function driveChain(stages, sliceArg, idx, opts = {}) {
     if (stage === 'implement') selfVerified = null
     const dispatched = pre ? pre
       : stage === 'implement' ? await implementSlice(sliceArg, idx, entry, answered, selfVerify, { ...(sentBack && sentBack.live ? { sentBack } : {}), ...(opts.side ? { side: opts.side } : {}), ...(opts.beside ? { beside: opts.beside } : {}) })
-      : stage === 'verify' ? await driveVerify(sliceArg, idx, { answered, ...(firstVerify ? { first: firstVerify } : {}) })
+      : stage === 'verify' ? await driveVerify(sliceArg, idx, { answered, ...(firstVerify ? { first: firstVerify } : {}), ...(opts.carry ? { carry: opts.carry } : {}) })
       : stage === 'review' ? await driveReview(sliceArg, idx, { answered })
       : stage === 'plan' && refresh ? await runStage(stage, sliceArg, idx, { stopCheck: true, refresh, answered })
       : await runStage(stage, sliceArg, idx, { stopCheck: true, answered })
@@ -3756,7 +3773,14 @@ if (idx.workflowType === 'update-deps') {
       return null
     }
     if (!passed) log(`the verify of '${p.slice}' that ran behind did not pass (${raw ? raw.hardStopReason || raw.status : 'no result'}) — it runs again in the main checkout, at the tip`)
-    const v = await driveChain(['verify'], p.slice, idx, {})
+    // The verify at the tip starts from the evidence of the one that ran behind: it reruns what did
+    // not pass there and the tests of what changed since, not the whole suite from scratch.
+    const failed = raw ? [
+      ...(Array.isArray(raw.residual) ? raw.residual.map(d => d && (d.ac ? `${d.ac}${d.reason ? `: ${d.reason}` : ''}` : d.item || d.reason)).filter(Boolean) : []),
+      ...(raw.hardStopReason ? [raw.hardStopReason] : []),
+    ].slice(0, 20) : []
+    const carry = raw ? { sha: p.sha, artifact: raw.artifactPath || null, result: t.result || raw.status || null, failed } : null
+    const v = await driveChain(['verify'], p.slice, idx, carry ? { carry } : {})
     p.chain.ran.push(...(v.ran || []))
     if (!v.stopped) return null
     return stopOut(v.stoppedAt, v.reason, { mode: 'slug', reviewScope: idx.reviewScope, results, stoppedSlice: p.slice, route: v.route || `address the gate at '${v.stoppedAt}' on slice '${p.slice}', then re-run /wf yolo ${slug}`, ...(v.questions ? { questions: v.questions } : {}) })
@@ -4010,8 +4034,10 @@ if (idx.workflowType === 'update-deps') {
       }
       // ---- the verify of this slice, behind (verifyBehind) -------------------
       // Not for an xs or s slice (its implement agent verifies), not for the last slice, not for a
-      // slice that carries an answer for its verify, and not on a branch that takes no commit.
-      const behind = VERIFY_BEHIND && !bounded && !reviewPer && idx.branch.commits === true && !SELF_VERIFY_SIZES.includes(s.complexity) && mine.verify !== 'done' && !answeredFor(ANSWERED, 'verify', s.slice) && !!nextUp()
+      // slice that carries an answer for its verify, and not on a branch that takes no commit. Not
+      // when the next slice's implement is already done (a run that resumes): nothing would build
+      // beside the verify, and its code is on the tip already, so the verify runs at the tip.
+      const behind = VERIFY_BEHIND && !bounded && !reviewPer && idx.branch.commits === true && !SELF_VERIFY_SIZES.includes(s.complexity) && mine.verify !== 'done' && !answeredFor(ANSWERED, 'verify', s.slice) && !!nextUp() && stagesOf(nextUp().slice).implement !== 'done'
       const ahead = plansAhead.get(s.slice)
       plansAhead.delete(s.slice)
       // While a verify runs behind, this slice stops after its implement: the fix commits of that
