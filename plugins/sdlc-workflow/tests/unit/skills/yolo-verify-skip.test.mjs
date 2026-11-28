@@ -132,6 +132,7 @@ function verifyHarness(rounds, wall) {
     ${extractFn('personAccepted')}
     ${extractFn('probeGaps')}
     ${extractFn('notRuntimeAcs')}
+    ${extractFn('runtimeDeferralCount')}
     ${extractFn('isRuntimeEvidenceClass')}
     ${extractFn('fixRoundLeft')}
     ${extractFn('driveVerify')}
@@ -204,7 +205,7 @@ test('an xs implement that returns no verify gets a verify agent', async () => {
 test('driveVerify: a self-verify that did not converge stops without a verify agent', async () => {
   const runs = [];
   const build = new Function('stubs', `
-    const { runStage, log, probeGaps, driveWallProbe, acKey, notRuntimeAcs } = stubs
+    const { runStage, log, probeGaps, driveWallProbe, acKey, notRuntimeAcs, runtimeDeferralCount } = stubs
     ${extractFn('verifyClean')}
     ${extractFn('fixRoundLeft')}
     ${extractFn('driveVerify')}
@@ -212,7 +213,7 @@ test('driveVerify: a self-verify that did not converge stops without a verify ag
   `);
   const driveVerify = build({
     runStage: async (...a) => { runs.push(a); return CLEAN('verify'); },
-    log: () => {}, probeGaps: () => [], driveWallProbe: async () => null, acKey: (x) => x, notRuntimeAcs: () => new Set(),
+    log: () => {}, probeGaps: () => [], driveWallProbe: async () => null, acKey: (x) => x, notRuntimeAcs: () => new Set(), runtimeDeferralCount: () => 0,
   });
   const failed = { status: 'complete', terminal: { convergence: 'escalated', result: 'fail', substantiveResidual: true } };
   const r = await driveVerify('auth', { priorDeferrals: [] }, { first: failed });

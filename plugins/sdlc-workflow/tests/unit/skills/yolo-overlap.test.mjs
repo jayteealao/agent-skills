@@ -304,3 +304,15 @@ test('a slice whose next slice is already implemented (a resumed run) is verifie
   assert.doesNotMatch(r.prompt('verify:a'), /VERIFY BEHIND/);
   assert.equal(r.count('merge:a'), 0);
 });
+
+test('the verify after a send-back starts from the verify that sent the slice back', async () => {
+  const fail = { stage: 'verify', slice: 'a', status: 'hard-stop', artifactPath: '/repo/06-verify-a.md', terminal: FAIL, residual: [{ ac: 'AC-3', reason: 'the sum is wrong' }], hardStopReason: 'AC-3 still fails' };
+  const r = await run([slice('a')], { answer: (c) => (c.label === 'verify:a' && c.n <= 2 ? fail : undefined) });
+  assert.equal(r.outcome.ok, true, r.outcome.reason);
+  assert.equal(r.count('verify:a'), 3);
+  const after = r.prompt('verify:a', 3);
+  assert.match(after, /CARRIED EVIDENCE: an earlier verify of this slice ran at commit [0-9a-f]{8} and wrote \/repo\/06-verify-a\.md \(result fail\)/);
+  assert.match(after, /AC-3: the sum is wrong/);
+  assert.doesNotMatch(r.prompt('verify:a', 1), /CARRIED EVIDENCE/);
+  assert.doesNotMatch(r.prompt('verify:a', 2), /CARRIED EVIDENCE/);
+});

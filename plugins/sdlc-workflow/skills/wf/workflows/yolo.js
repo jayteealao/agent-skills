@@ -534,6 +534,32 @@ function notRuntimeAcs(res, priorDeferrals) {
   return out
 }
 
+// The runtime-evidence deferrals of one verify result, each AC once: the entries that probeGaps
+// would ask a receipt of, receipted or not.
+function runtimeDeferralCount(t, residual, notRuntime = null) {
+  const keys = new Set()
+  for (const arr of [t && t.deferrals, residual]) {
+    if (!Array.isArray(arr)) continue
+    for (const d of arr) {
+      if (!d || !d.ac) continue
+      if (d.classification && !isRuntimeEvidenceClass(d.classification)) continue
+      if (notRuntime && notRuntime.has(acKey(d.ac))) continue
+      keys.add(acKey(d.ac))
+    }
+  }
+  return keys.size
+}
+
+// What did not pass in a verify result, for the verify that runs after it: its residual items and
+// its stop reason, at most 20.
+function failedItems(raw) {
+  if (!raw) return []
+  return [
+    ...(Array.isArray(raw.residual) ? raw.residual.map(d => d && (d.ac ? `${d.ac}${d.reason ? `: ${d.reason}` : ''}` : d.item || d.reason)).filter(Boolean) : []),
+    ...(raw.hardStopReason ? [raw.hardStopReason] : []),
+  ].slice(0, 20)
+}
+
 function probeGaps(t, residual, notRuntime = null) {
   const probed = new Set()       // acKey → some copy carries a non-empty probe
   const gapEntry = new Map()     // acKey → first probe-less entry seen (dedupe by acKey)
@@ -743,8 +769,15 @@ function deferralPressure(priorDeferrals, runDeferrals) {
     if (repeatOf) repeatWalls++
     if (deferredAt && (!oldestDeferredAt || String(deferredAt) < String(oldestDeferredAt))) oldestDeferredAt = deferredAt
   }
-  for (const d of prior) consider(d && d.slice, d && d.reason, d && d.deferredAt, d && d.repeatOf)
-  for (const d of run) consider(d && d.slice, (d && d.ac) ? acKey(d.ac) : (d && d.reason), null, null)
+  // One key for both sides: the AC when the entry names one, else its reason. A ledger entry and
+  // this run's copy of the same deferral count once. A ledger entry whose wall the code owns is no
+  // runtime-evidence deferral (the same rule as reconcileDeferrals), so it adds no pressure.
+  const keyOf = (d) => (d && d.ac) ? acKey(d.ac) : (d && d.reason)
+  for (const d of prior) {
+    if (d && !isRuntimeEvidenceClass(d.classification || d.wallOwnership)) continue
+    consider(d && d.slice, keyOf(d), d && d.deferredAt, d && d.repeatOf)
+  }
+  for (const d of run) consider(d && d.slice, keyOf(d), null, null)
   return { open, oldestDeferredAt, repeatWalls }
 }
 
@@ -2045,6 +2078,8 @@ function reChallengeClause(priorDeferrals, deferCmd) {
   // accepted and re-walls a run the PO explicitly unblocked (bot-backend 2026-07-12:
   // accepted deferrals forced hand-crafted slice-mode workarounds). Exclude them.
   priorDeferrals = priorDeferrals.filter(d => !(d && d.authorized === true))
+  // A wall that the code owns is no runtime-evidence deferral: no probe of the environment clears it.
+  priorDeferrals = priorDeferrals.filter(d => !d || isRuntimeEvidenceClass(d.classification || d.wallOwnership))
   if (!priorDeferrals.length) return ''
   const lines = priorDeferrals.map(d => {
     const parts = [`slice '${(d && d.slice) || '?'}'`, `reason: ${(d && d.reason) || '(none recorded)'}`]
@@ -2460,8 +2495,7 @@ async function driveVerify(sliceArg, idx, extra = {}) {
         }
         return { ...last, status: 'hard-stop', hardStopReason: `deferral(s) still carry no capability-probe receipt after a corrective re-run: ${gaps.map(g => g.ac).join(', ')} — attach the literal probe command + output tail per verify/_deferrals.md §"Attempt before declare", or produce the evidence if the wall no longer stands` }
       }
-      const deferred = (Array.isArray(t.deferrals) ? t.deferrals.length : 0) +
-                       (Array.isArray(last.residual) ? last.residual.filter(d => d && d.ac).length : 0)
+      const deferred = runtimeDeferralCount(t, last.residual, notRuntimeAcs(last, idx.priorDeferrals))
       if (deferred > 0) log(`verify:${sliceArg} clean with ${deferred} runtime-evidence deferral(s) — recorded in 00-index runtime-evidence-deferrals; review proceeds, /wf ship blocks until cleared`)
       return last
     }
@@ -3259,7 +3293,7 @@ async function driveChain(stages, sliceArg, idx, opts = {}) {
     if (stage === 'implement') selfVerified = null
     const dispatched = pre ? pre
       : stage === 'implement' ? await implementSlice(sliceArg, idx, entry, answered, selfVerify, { ...(sentBack && sentBack.live ? { sentBack } : {}), ...(opts.side ? { side: opts.side } : {}), ...(opts.beside ? { beside: opts.beside } : {}) })
-      : stage === 'verify' ? await driveVerify(sliceArg, idx, { answered, ...(firstVerify ? { first: firstVerify } : {}), ...(opts.carry ? { carry: opts.carry } : {}) })
+      : stage === 'verify' ? await driveVerify(sliceArg, idx, { answered, ...(firstVerify ? { first: firstVerify } : {}), ...(opts.carry ? { carry: opts.carry } : sentBack && sentBack.carry && headAt ? { carry: { ...sentBack.carry, sha: headAt } } : {}) })
       : stage === 'review' ? await driveReview(sliceArg, idx, { answered })
       : stage === 'plan' && refresh ? await runStage(stage, sliceArg, idx, { stopCheck: true, refresh, answered })
       : await runStage(stage, sliceArg, idx, { stopCheck: true, answered })
@@ -3297,7 +3331,10 @@ async function driveChain(stages, sliceArg, idx, opts = {}) {
     // once: a new agent fixes the failing items, and verify runs again. The run stops only when
     // that also fails. The verify in an implement agent (xs or s) already had its builder.
     if (stage === 'verify' && res && !sentBack && !firstVerify && opts.bounded !== true && fixRoundLeft(res)) {
-      sentBack = { reason: res.hardStopReason || 'verify did not converge', live: true }
+      // The verify after the fix starts from this one: what did not pass here, and the code the
+      // implement changed (from its headStart), not the whole suite from scratch.
+      sentBack = { reason: res.hardStopReason || 'verify did not converge', live: true,
+        carry: { artifact: res.artifactPath || null, result: (res.terminal && res.terminal.result) || res.status || null, failed: failedItems(res) } }
       log(`verify:${sliceArg} still fails after its fix rounds — sent back to implement once: ${sentBack.reason}`)
       forced.add('implement')
       forced.add('verify')
@@ -3775,11 +3812,7 @@ if (idx.workflowType === 'update-deps') {
     if (!passed) log(`the verify of '${p.slice}' that ran behind did not pass (${raw ? raw.hardStopReason || raw.status : 'no result'}) — it runs again in the main checkout, at the tip`)
     // The verify at the tip starts from the evidence of the one that ran behind: it reruns what did
     // not pass there and the tests of what changed since, not the whole suite from scratch.
-    const failed = raw ? [
-      ...(Array.isArray(raw.residual) ? raw.residual.map(d => d && (d.ac ? `${d.ac}${d.reason ? `: ${d.reason}` : ''}` : d.item || d.reason)).filter(Boolean) : []),
-      ...(raw.hardStopReason ? [raw.hardStopReason] : []),
-    ].slice(0, 20) : []
-    const carry = raw ? { sha: p.sha, artifact: raw.artifactPath || null, result: t.result || raw.status || null, failed } : null
+    const carry = raw ? { sha: p.sha, artifact: raw.artifactPath || null, result: t.result || raw.status || null, failed: failedItems(raw) } : null
     const v = await driveChain(['verify'], p.slice, idx, carry ? { carry } : {})
     p.chain.ran.push(...(v.ran || []))
     if (!v.stopped) return null

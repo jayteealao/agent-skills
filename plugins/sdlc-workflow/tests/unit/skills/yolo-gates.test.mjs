@@ -26,7 +26,7 @@ const yoloSrc = driverSource('yolo.js');
 // they extract by the same brace-matching — testing the SHIPPED code with no drift-prone copy.
 const {
   verifyClean, evaluateGate, collectDeferrals, probeGaps, reChallengeClause, deferralPressure,
-  decisionDigest, acKey, notRuntimeAcs,
+  decisionDigest, acKey, notRuntimeAcs, runtimeDeferralCount,
   // The aggregation-truth and tripwire rollups.
   classificationIndex, isRuntimeEvidenceClass, reconcileDeferrals,
   collectSubstantiveFailures, collectSubagentErrors, clearingTripwire, judgeLiveness,
@@ -41,6 +41,7 @@ const {
     extractFn(yoloSrc, 'collectDeferrals'),
     extractFn(yoloSrc, 'probeGaps'),
     extractFn(yoloSrc, 'notRuntimeAcs'),
+    extractFn(yoloSrc, 'runtimeDeferralCount'),
     extractFn(yoloSrc, 'reChallengeClause'),
     extractFn(yoloSrc, 'deferralPressure'),
     extractFn(yoloSrc, 'decisionDigest'),
@@ -51,7 +52,7 @@ const {
     extractFn(yoloSrc, 'collectSubagentErrors'),
     extractFn(yoloSrc, 'clearingTripwire'),
     extractFn(yoloSrc, 'judgeLiveness'),
-    'return { verifyClean, evaluateGate, collectDeferrals, probeGaps, notRuntimeAcs, reChallengeClause, deferralPressure, decisionDigest, acKey, classificationIndex, isRuntimeEvidenceClass, reconcileDeferrals, collectSubstantiveFailures, collectSubagentErrors, clearingTripwire, judgeLiveness, stageResults, acceptedResiduals };',
+    'return { verifyClean, evaluateGate, collectDeferrals, probeGaps, notRuntimeAcs, runtimeDeferralCount, reChallengeClause, deferralPressure, decisionDigest, acKey, classificationIndex, isRuntimeEvidenceClass, reconcileDeferrals, collectSubstantiveFailures, collectSubagentErrors, clearingTripwire, judgeLiveness, stageResults, acceptedResiduals };',
   ].join('\n')
 )();
 
@@ -987,4 +988,23 @@ test('probeGaps: a residual whose recorded classification is not runtime-evidenc
   assert.deepEqual(probeGaps(t, res.residual, notRuntimeAcs({}, [{ ac: 'SC-10', classification: 'build-capability' }])), []);
   // A run decision that says runtime-evidence wins over the ledger: the receipt is owed again.
   assert.equal(probeGaps(t, res.residual, notRuntimeAcs({ decisions: [{ ac: 'SC-10', classification: 'runtime-evidence' }] }, [{ ac: 'SC-10', classification: 'build-capability' }])).length, 1);
+});
+
+test('deferralPressure: a ledger entry and this run\'s copy of the same AC count once; a code-owned wall adds none', () => {
+  const p = deferralPressure([{ slice: 's1', ac: 'AC2', reason: 'no device' }], [{ slice: 's1', ac: 'AC2 — heard', reason: 'no device, still' }]);
+  assert.equal(p.open, 1);
+  assert.equal(deferralPressure([{ slice: 's1', ac: 'AC3', reason: 'needs a build flag', wallOwnership: 'code-owned' }], []).open, 0);
+  assert.equal(deferralPressure([{ slice: 's1', ac: 'AC4', reason: 'no key', wallOwnership: 'external' }], []).open, 1);
+});
+
+test('reChallengeClause: a wall that the code owns is not re-probed', () => {
+  assert.equal(reChallengeClause([{ slice: 's1', ac: 'AC3', reason: 'needs a build flag', wallOwnership: 'code-owned' }], 'defer check'), '');
+  assert.match(reChallengeClause([{ slice: 's1', ac: 'AC4', reason: 'no key', wallOwnership: 'environment-negotiable' }], 'defer check'), /no key/);
+});
+
+test('runtimeDeferralCount: counts each runtime-evidence AC once, and no build-capability one', () => {
+  const t = { deferrals: [{ ac: 'AC1 — heard', probe: 'p' }] };
+  const residual = [{ ac: 'AC1' }, { ac: 'SC-10', reason: 'narrow claim' }, { ac: 'AC5', classification: 'scope' }];
+  assert.equal(runtimeDeferralCount(t, residual), 2);
+  assert.equal(runtimeDeferralCount(t, residual, notRuntimeAcs({ decisions: [{ ac: 'SC-10', classification: 'build-capability' }] }, [])), 1);
 });
