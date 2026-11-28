@@ -517,13 +517,33 @@ function acKey(ac) {
 // `probe`. Dedupe credits EITHER array: if any copy of an ac records a probe, that ac is
 // compliant. driveVerify turns a non-empty result into ONE corrective re-run (soft),
 // then a hard-stop (the law is not optional) — never a first-round hard gate.
-function probeGaps(t, residual) {
+// `res` is the verify result (its `decisions`) and `priorDeferrals` the index ledger: an AC that
+// a recorded classification names other than runtime-evidence (build-capability, scope, …) is
+// no deferral, so it needs no capability-probe receipt — the same precedence as reconcileDeferrals.
+function notRuntimeAcs(res, priorDeferrals) {
+  const out = new Set()
+  for (const p of (priorDeferrals || [])) {
+    const cls = p && p.ac && (p.classification || p.wallOwnership)
+    if (cls && !isRuntimeEvidenceClass(cls)) out.add(acKey(p.ac))
+  }
+  for (const d of ((res && res.decisions) || [])) {
+    if (!d || !d.ac || !d.classification) continue
+    if (isRuntimeEvidenceClass(d.classification)) out.delete(acKey(d.ac))
+    else out.add(acKey(d.ac))
+  }
+  return out
+}
+
+function probeGaps(t, residual, notRuntime = null) {
   const probed = new Set()       // acKey → some copy carries a non-empty probe
   const gapEntry = new Map()     // acKey → first probe-less entry seen (dedupe by acKey)
   const scan = (arr) => {
     if (!Array.isArray(arr)) return
     for (const d of arr) {
       if (!d || !d.ac) continue   // ac-less notes are not deferrals — ignored (matches collectDeferrals)
+      // A recorded classification other than runtime-evidence is canonical: no receipt is owed.
+      if (d.classification && !isRuntimeEvidenceClass(d.classification)) continue
+      if (notRuntime && notRuntime.has(acKey(d.ac))) continue
       if (typeof d.probe === 'string' && d.probe.trim() !== '') probed.add(acKey(d.ac))
       else if (!gapEntry.has(acKey(d.ac))) gapEntry.set(acKey(d.ac), d)
     }
@@ -2396,7 +2416,7 @@ async function driveVerify(sliceArg, idx, extra = {}) {
       // receipts there re-walls a run the PO explicitly unblocked.
       const sliceAuthorized = Array.isArray(idx.priorDeferrals) &&
         idx.priorDeferrals.some(p => p && p.slice === sliceArg && p.authorized === true)
-      const gaps = sliceAuthorized ? [] : probeGaps(t, last.residual)
+      const gaps = sliceAuthorized ? [] : probeGaps(t, last.residual, notRuntimeAcs(last, idx.priorDeferrals))
       // A missing receipt first gets the wall probe: one short agent. When every wall of the
       // gap still stands, its fresh receipts go on the deferrals and the clean result stands.
       // Only a wall that fell, or a probe that did not answer, earns the full verify again.
@@ -2793,7 +2813,7 @@ async function driveUpdateDeps(idx) {
     // No round loop on this path (the plan/exec is one pass), so a probe-less deferral is
     // surfaced in the hand-back rather than triggering a corrective re-run — the standard
     // verify path is where the corrective-round volume is. Revisit if the pattern recurs here.
-    const g = probeGaps(exec.terminal || {}, exec.residual)
+    const g = probeGaps(exec.terminal || {}, exec.residual, notRuntimeAcs(exec, idx && idx.priorDeferrals))
     if (g.length) {
       execProbeGaps = g.map(x => x.ac)
       log(`update-deps exec: ${g.length} deferral(s) carry no capability-probe receipt (${execProbeGaps.join(', ')}) — surfaced in the hand-back; re-run /wf verify (to attach receipts) or /wf probe in a capable environment`)
@@ -3712,7 +3732,7 @@ if (idx.workflowType === 'update-deps') {
     if (m.note) log(`merge:${p.slice} — ${m.note}`)
     if ((m.resolved || []).length) log(`merge:${p.slice} — a conflict was resolved in ${m.resolved.join(', ')}`)
     const t = (raw && raw.terminal) || {}
-    const passed = !!raw && raw.status === 'complete' && verifyClean(t, raw.residual) && probeGaps(t, raw.residual).length === 0
+    const passed = !!raw && raw.status === 'complete' && verifyClean(t, raw.residual) && probeGaps(t, raw.residual, notRuntimeAcs(raw, idx.priorDeferrals)).length === 0
     let clean = passed
     // The verify passed on the code of its own branch. When that branch made fix commits, or the
     // merge was resolved by hand, the checks of the slice run once more on the code that holds both.

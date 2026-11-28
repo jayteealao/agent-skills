@@ -31,6 +31,8 @@ function verifyHarness(rounds) {
     ${extractFn('verifyClean')}
     ${extractFn('personAccepted')}
     ${extractFn('probeGaps')}
+    ${extractFn('notRuntimeAcs')}
+    ${extractFn('isRuntimeEvidenceClass')}
     ${extractFn('fixRoundLeft')}
     ${extractFn('driveVerify')}
     return driveVerify

@@ -26,7 +26,7 @@ const yoloSrc = driverSource('yolo.js');
 // they extract by the same brace-matching — testing the SHIPPED code with no drift-prone copy.
 const {
   verifyClean, evaluateGate, collectDeferrals, probeGaps, reChallengeClause, deferralPressure,
-  decisionDigest, acKey,
+  decisionDigest, acKey, notRuntimeAcs,
   // The aggregation-truth and tripwire rollups.
   classificationIndex, isRuntimeEvidenceClass, reconcileDeferrals,
   collectSubstantiveFailures, collectSubagentErrors, clearingTripwire, judgeLiveness,
@@ -40,6 +40,7 @@ const {
     extractFn(yoloSrc, 'evaluateGate'),
     extractFn(yoloSrc, 'collectDeferrals'),
     extractFn(yoloSrc, 'probeGaps'),
+    extractFn(yoloSrc, 'notRuntimeAcs'),
     extractFn(yoloSrc, 'reChallengeClause'),
     extractFn(yoloSrc, 'deferralPressure'),
     extractFn(yoloSrc, 'decisionDigest'),
@@ -50,7 +51,7 @@ const {
     extractFn(yoloSrc, 'collectSubagentErrors'),
     extractFn(yoloSrc, 'clearingTripwire'),
     extractFn(yoloSrc, 'judgeLiveness'),
-    'return { verifyClean, evaluateGate, collectDeferrals, probeGaps, reChallengeClause, deferralPressure, decisionDigest, acKey, classificationIndex, isRuntimeEvidenceClass, reconcileDeferrals, collectSubstantiveFailures, collectSubagentErrors, clearingTripwire, judgeLiveness, stageResults, acceptedResiduals };',
+    'return { verifyClean, evaluateGate, collectDeferrals, probeGaps, notRuntimeAcs, reChallengeClause, deferralPressure, decisionDigest, acKey, classificationIndex, isRuntimeEvidenceClass, reconcileDeferrals, collectSubstantiveFailures, collectSubagentErrors, clearingTripwire, judgeLiveness, stageResults, acceptedResiduals };',
   ].join('\n')
 )();
 
@@ -972,4 +973,18 @@ test('verifyClean: an accept clears only the failing items it names', () => {
   assert.equal(verifyClean(t({}), []), false, 'no failingItems: the accept cannot be checked');
   assert.equal(verifyClean(t({ failingItems: ['AC-9'], substantiveResidual: undefined }), []), false);
   assert.equal(verifyClean({ convergence: 'converged', result: 'partial', deferrals: [{ ac: 'AC1' }] }, []), false, 'a partial with no residual answer is not clean');
+});
+
+test('probeGaps: a residual whose recorded classification is not runtime-evidence owes no receipt (the SC-10 hard-stop)', () => {
+  // The shape of the run: result partial, no deferrals, a residual with an ac, and the verify's
+  // own decision classifying that ac build-capability.
+  const res = { decisions: [{ ac: 'SC-10', classification: 'build-capability' }], residual: [{ ac: 'SC-10', reason: 'T-65 narrow claim unasserted' }] };
+  const t = { result: 'partial', convergence: 'converged', deferrals: [] };
+  assert.equal(probeGaps(t, res.residual).length, 1, 'without the classification it is a gap');
+  assert.deepEqual(probeGaps(t, res.residual, notRuntimeAcs(res, [])), []);
+  // The entry's own classification, and the index ledger, count the same way.
+  assert.deepEqual(probeGaps(t, [{ ac: 'SC-10', classification: 'scope' }]), []);
+  assert.deepEqual(probeGaps(t, res.residual, notRuntimeAcs({}, [{ ac: 'SC-10', classification: 'build-capability' }])), []);
+  // A run decision that says runtime-evidence wins over the ledger: the receipt is owed again.
+  assert.equal(probeGaps(t, res.residual, notRuntimeAcs({ decisions: [{ ac: 'SC-10', classification: 'runtime-evidence' }] }, [{ ac: 'SC-10', classification: 'build-capability' }])).length, 1);
 });
