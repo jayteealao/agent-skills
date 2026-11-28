@@ -5,6 +5,10 @@ All notable changes to the sdlc-workflow plugin will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [10.0.0-next.42] - 2026-11-28
+
+- fix(sdlc-workflow): an answer picked in the question tool records with no second ask
+
 ## [10.0.0-next.41] - 2026-11-27
 
 - fix(sdlc-workflow): a change that this computer committed itself is not parked as another computer's
