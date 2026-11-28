@@ -14,6 +14,7 @@ import { existsSync } from 'node:fs';
 import { writeFileAtomic } from '../lib/atomic-write.mjs';
 import { READS, WRITES, libraryHelp } from '../lib/ops/code-host.mjs';
 import { READ_TOOLS, TOOLS, opsOfTool, refusal, registry } from '../lib/ops/registry.mjs';
+import { witnessed } from '../lib/answer-witness.mjs';
 
 const ABOUT = {
   wf_context: 'Where a workflow stands and what to do next. Call it first. Give the /wf words as `argv` (["implement", "demo", "api"]) to route them, or `slug` (and `stage`, `slice`) for the brief of a stage.',
@@ -21,7 +22,7 @@ const ABOUT = {
   wf_query: 'Every other read of wf, read-only: help and describe, status reads, profiles, rules, design reads, git facts. A writing operation runs here only with its read flag (`check: true`).',
   wf_run: 'Write the records of this computer: records, findings, the board, slices, progress, talk and messages, design content, settings. One operation per call. Content goes inline, with no file: `record put` takes `records: { "04-plan-api.md": "<the whole record>" }`, `record edit` takes `text` in place of `from`, `findings add` takes `found: [...]`, `board add` takes `entries`, `board apply` takes `change`, and `slice add` takes `ac: [...]`.',
   wf_step: 'The steps of a slice: start, done, check, stop, retry, complete. `done_next` records step n and starts step n + 1 in one call. `steps: [{ op, n, title?, sha?, "no-change"? }, ...]` (with `slug` and `slice`, no `op`) runs several in order in one call, and stops at the first that fails.',
-  wf_decide: 'Record an answer or a decision of a stage, hold a question for the person, drop, end or tidy decisions. `add_many` with `entries: [{ kind, key, question, answer, by }]` records several in one change. An entry by the person, a steer or an approval goes to wf_person.',
+  wf_decide: 'Record an answer or a decision of a stage, hold a question for the person, drop, end or tidy decisions. `add_many` with `entries: [{ kind, key, question, answer, by }]` records several in one change. An answer that the person picked in the question tool (AskUserQuestion) records here with `by: "person"` and the question as asked: the answer log proves it, so the person is not asked again. An answer typed in the chat, a steer or an approval goes to wf_person.',
   wf_wait: 'Wait for an answer (decide wait), a message (talk wait), the end of a job (`{ "for": "job", "job": "<id>" }`), or the next event of a run: `{ "for": "run", "slug", "cursor" }` ends at the next journal line, message or job end after the cursor. It returns within its time; `next` is the call to make again, with the cursor, so no event is missed. progress watch reads where a run stands, once.',
   wf_job: 'A long run: a suite (profile run, receipt), a design capture or check, a drive, the long steps of optimize, orchestrate and goal. It starts a job that runs on in its own process and returns its id at once; the same call while the job runs returns that job, never a second one. Wait for its end with wf_wait { for: "job", job }. `op: "status" | "logs" | "stop" | "list"` with `job` reads or stops a job. `wait: true` runs the operation in the call instead (up to 10 minutes). A check of a step is step check in wf_step.',
   wf_act: 'Effects outside the records of this computer: the records repo, GitHub, worktrees, the design server, setup, close and ship. Each call may need the permission of the person.',
@@ -222,7 +223,11 @@ export async function callTool(name, args = {}, ctx = {}) {
   }
   // Only wf_person runs as the person. A caller that names itself the person in any other tool
   // runs as an agent, so the person-only guards of the handlers still refuse it.
-  const caller = name === 'wf_person' ? 'person' : (ctx.caller && ctx.caller !== 'person' ? ctx.caller : 'agent');
+  // A wf_decide add of the main session runs as the person when the answer log of the host's
+  // question tool proves each entry by the person (lib/answer-witness.mjs): no second ask.
+  const decideAdd = name === 'wf_decide' && (args.op === 'add_many' || ['decide add', 'add'].includes(String(args.op ?? '')));
+  const proven = decideAdd && ctx.caller === 'session' && !ctx.identity?.agent_id && witnessed(root, args, { session: ctx.identity?.session_id ?? null });
+  const caller = name === 'wf_person' || proven ? 'person' : (ctx.caller && ctx.caller !== 'person' ? ctx.caller : 'agent');
   const run = async (op, fields, extra = {}) => {
     const inl = inlineFields(root, op, fields);
     if (inl.error) return fail(inl.error);

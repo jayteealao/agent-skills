@@ -146,3 +146,30 @@ test('a call does not reach another project through root', async () => {
     assert.equal(own.ok, true, 'its own root is fine');
   } finally { a.done(); b.done(); }
 });
+
+test('an answer that the question tool of this session logged records by the person with no second ask; nothing else does', async () => {
+  const p = project();
+  try {
+    const { appendAnswerEvent } = await import('../../lib/answers.mjs');
+    appendAnswerEvent(p.root, { tool: 'AskUserQuestion', questions: [{ question: 'Which database?', header: 'DB', answer: 'Postgres' }] }, { host: 'claude', session: 's1' });
+    const session = { root: p.root, caller: 'session', identity: { session_id: 's1' } };
+    const add = (more, ctx = session) => callTool('wf_decide', { op: 'decide add', slug: 'demo', key: 'db', question: 'Which database?', by: 'person', ...more }, ctx);
+    const ok = await add({ answer: 'Postgres: the team knows it' });
+    assert.equal(ok.ok, true, JSON.stringify(ok.error));
+    assert.equal((await decisionsOf(p.root)).data.at(-1).by, 'person');
+    // Not proven: another answer, another question, a steer, another session, a sub-agent.
+    for (const [more, ctx, why] of [
+      [{ answer: 'MySQL' }, session, 'another answer'],
+      [{ question: 'Which cache?', answer: 'Postgres' }, session, 'another question'],
+      [{ answer: 'Postgres', kind: 'steer' }, session, 'a steer'],
+      [{ answer: 'Postgres' }, { ...session, identity: { session_id: 's2' } }, 'another session'],
+      [{ answer: 'Postgres' }, { ...session, caller: 'agent:general-purpose', identity: { session_id: 's1', agent_id: 'a1' } }, 'a sub-agent'],
+    ]) {
+      const r = await add(more, ctx);
+      assert.equal(r.ok, false, `${why} was let through`);
+    }
+    // The JSON text form of entries, as hosts send it.
+    const many = await callTool('wf_decide', { op: 'decide add', slug: 'demo', entries: JSON.stringify([{ kind: 'answer', key: 'db2', question: 'Which database', answer: 'Postgres', by: 'person' }, { key: 'x', question: 'q', answer: 'y', by: 'stage' }]) }, session);
+    assert.equal(many.ok, true, JSON.stringify(many.error));
+  } finally { p.done(); }
+});

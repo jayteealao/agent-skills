@@ -1426,7 +1426,7 @@ footer { margin-top: 56px; padding-top: 16px; border-top: 1px solid var(--rule);
         <li><b>wf_run · wf_step · wf_decide</b><span>Writes: the records, the steps of a slice, the answers and the held questions.</span></li>
         <li><b>wf_job · wf_wait</b><span>Long work runs as a detached job, which goes on when the session ends. <code>wf_wait</code> waits for a job, an answer or the next event of a run, and gives the call that waits again.</span></li>
         <li><b>wf_act</b><span>Git, GitHub and servers. A merge, a push, a post to GitHub, a migration or a server install asks you first.</span></li>
-        <li><b>wf_person</b><span>A choice of the person. A sub-agent or a Workflow agent never calls it, never calls as the session or the person, and records no entry by the person.</span></li>
+        <li><b>wf_person</b><span>A choice of the person that the answer log cannot prove (an answer typed in the chat, a steer, an approval); an answer picked in AskUserQuestion records with wf_decide. A sub-agent or a Workflow agent never calls it, never calls as the session or the person, and records no entry by the person.</span></li>
         <li><b>The shell still works</b><span>A shell call of <code>wf.mjs</code> runs, and gets a note with the matching tool call. When the server is down, the command line is the way to call wf.</span></li>
       </ul>
     </section>
